@@ -1,0 +1,37 @@
+{
+  "name": "ake-api",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "node ace build --production",
+    "start": "node build§server.js",
+    "dev": "node ace serve --watch"
+  },
+  "devDependencies": {
+    "@adonisjs/assembler": "^5.3.5",
+    "adonis-preset-ts": "^2.1.0",
+    "pino-pretty": "^5.1.2",
+    "typescript": "~4.2",
+    "youch": "^2.2.2",
+    "youch-terminal": "^1.1.1"
+  },
+  "dependencies": {
+    "@adonisjs/auth": "^8.0.7",
+    "@adonisjs/core": "^5.1.10",
+    "@adonisjs/lucid": "^15.0.3",
+    "@adonisjs/redis": "^7.0.8",
+    "@adonisjs/repl": "^3.1.5",
+    "@adonisjs/session": "^6.1.1",
+    "@types/socket.io": "^3.0.2",
+    "crypto": "^1.0.1",
+    "crypto-js": "^4.0.0",
+    "luxon": "^2.0.1",
+    "pg": "^8.6.0",
+    "phc-argon2": "^1.1.2",
+    "proxy-addr": "^2.0.7",
+    "redis": "^3.1.2",
+    "reflect-metadata": "^0.1.13",
+    "socket.io": "^4.1.3",
+    "source-map-support": "^0.5.19"
+  }
+}
