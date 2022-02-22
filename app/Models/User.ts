@@ -57,7 +57,7 @@ export default class User extends BaseModel {
     }
 
     if(user.description === "") {
-      user.description = 'Ake > Whatsapp'
+      user.description = 'Hey !'
     }
   }
 

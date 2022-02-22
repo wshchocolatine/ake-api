@@ -15,8 +15,6 @@ export default class Users extends BaseSchema {
       table.text('password')
       table.text('private_key')
       table.text('public_key')
-      table.text('stcp')
-      table.boolean('is_changing_password')
       //Date
       table.timestamp('created_at', { useTz: true })
       table.timestamp('updated_at', { useTz: true }) 

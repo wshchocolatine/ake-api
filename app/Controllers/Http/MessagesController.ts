@@ -19,13 +19,8 @@ export default class MessagesController {
                 return response.badRequest({ status: "badRequest", errors: e })
             }
 
-            //Checking auth
-            if (auth.user!.public_key === undefined) {
-                return response.internalServerError({ errors: 'Problème de sessions, contacte moi sur Discord :)' })
-            }
-
             //Getting data
-            let { receiver_username,receiver_tag, content } = await request.validate(StoreFirstMessageValidator)
+            let { receiver_username, receiver_tag, content } = await request.validate(StoreFirstMessageValidator)
 
             //Getting the receiver_id
             let receiver_id_array = await Database.from('users').where('username', receiver_username).andWhere('tag', receiver_tag).select('id')
@@ -43,7 +38,7 @@ export default class MessagesController {
             let iv = crypto.randomBytes(16)
 
             //Creating the cipher
-            let cipher = crypto.createCipheriv('aes-192-cbc', key, iv)
+            let cipher = crypto.createCipheriv('aes-192-ctr', key, iv)
             let encrypted_msg = cipher.update(content, 'utf-8', 'hex')
             encrypted_msg += cipher.final('hex')
 
@@ -137,11 +132,7 @@ export default class MessagesController {
             //Getting data
             let { conv_id, content } = await request.validate(StoreMessageValidator)
             let user_id = auth.user!.id
-
-            //Getting receiver_id and user_connected_id
-            //let receiver_id = (await Participant.query().where('conversation_id', conv_id).andWhereNot('user_id', user_id).select('user_id'))[0].user_id
-            //let authorAndReceiver = await Conversation.query().where('id', conv_id).select('author', 'receiver')
-            //let receiver_id = authorAndReceiver[0].author = auth.user!.id ? authorAndReceiver[0].receiver : authorAndReceiver[0].author
+            
 
             //INSERTING INTO DATABASE
 
@@ -151,7 +142,7 @@ export default class MessagesController {
             let key_AES = crypto.privateDecrypt(Buffer.from(session.get('key')), Buffer.from(key_encrypted, 'base64'))
 
             //Encrypting message
-            let cipher = crypto.createCipheriv('aes-192-cbc', key_AES, Buffer.from(iv, 'hex'))
+            let cipher = crypto.createCipheriv('aes-192-ctr', key_AES, Buffer.from(iv, 'hex'))
             let encrypted_msg = cipher.update(content, 'utf-8', 'hex')
             encrypted_msg += cipher.final('hex')
 
@@ -209,7 +200,7 @@ export default class MessagesController {
 
             //2.Decrypting messages
             messages.forEach((element) => {
-                let decipher = crypto.createDecipheriv('aes-192-cbc', key_AES, Buffer.from(iv, 'hex'))
+                let decipher = crypto.createDecipheriv('aes-192-ctr', key_AES, Buffer.from(iv, 'hex'))
                 let decrypted_msg = decipher.update(element.content, 'hex', 'utf-8')
                 decrypted_msg += decipher.final('utf-8')
                 element.content = decrypted_msg

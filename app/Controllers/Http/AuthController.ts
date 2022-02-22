@@ -5,6 +5,7 @@ import StoreUserValidator from 'App/Validators/StoreUserValidator'
 import FinishStoreUserValidator from 'App/Validators/FinishStoreUserValidator'
 import Database from '@ioc:Adonis/Lucid/Database'
 import { socketAuth } from '../../utils/socket-auth/index'
+//import { rword } from 'rword'
 
 let crypto = require('crypto')
 let CryptoJS = require('crypto-js')
@@ -98,6 +99,25 @@ export default class AuthController {
             return response.internalServerError({ status: "internalServerError", errors: e })
         }
     }
+
+    /*public async Seed_Phrase({ response, session }: HttpContextContract): Promise<void> {
+        try {
+            if (session.has('username')) {
+                //Generate seed phrase
+                let seed_phrase = rword.generate(12)
+
+                //Putting it in session
+                session.put('seed_phrase', seed_phrase)
+
+                //Sending it
+                return response.created({ status: "created", data: { 'seed_phrase': seed_phrase }})
+            } else {
+                return response.forbidden({ status : "forbidden" })
+            }
+        } catch(e) {
+            return response.internalServerError({ status : "internalServerError", errors: e })
+        }
+    }*/
 
     public async Login({ response, request, auth, session }: HttpContextContract): Promise<void> {
         try {

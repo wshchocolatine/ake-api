@@ -25,10 +25,14 @@ export default class ChangePasswordValidator {
 	 *    ```
 	 */
   public schema = schema.create({
-	password: schema.string({ trim: true }, [
-		rules.required(),
-		rules.regex(new RegExp('(?=^.{8,}$)(?=.*[0-9])(?=.*[A-Z])(?=.*[a-z])(?=.*[!@#$%^&*]+).*$'))
-	])
+	  seed_phrase: schema.string({ trim: false }, [
+		  rules.required()
+	  ]), 
+	  email: schema.string.optional(), 
+	  new_password: schema.string({ trim: true }, [
+		  rules.required(), 
+		  rules.regex(new RegExp('(?=^.{8,}$)(?=.*[0-9])(?=.*[A-Z])(?=.*[a-z])(?=.*[!@#$%^&*]+).*$'))
+	  ])
   })
 
 	/**
@@ -43,7 +47,7 @@ export default class ChangePasswordValidator {
 	 *
 	 */
   public messages = {
-	  'required': 'The {{ field }} field is required',
-	  'string': 'The {{ field }} field should be a string'
+	'required': 'The {{ field }} field is required',
+	'string': 'The {{ field }} field should be a string'
   }
 }
