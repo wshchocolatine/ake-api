@@ -50,5 +50,3 @@ Route.group(() => {
 Route.get('/', () => {
     return "Hey!! Welcome to Ake's api. Hope you will enjoy the trip :)"
 })
-
-Route.get('/redis', 'TriesController.Redis')

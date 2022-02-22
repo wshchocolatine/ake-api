@@ -32,7 +32,7 @@ export default class ConversationsController {
                 let key_AES = crypto.privateDecrypt(Buffer.from(session.get('key')), Buffer.from(key_encrypted, 'base64'))
 
                 //Decrypt message
-                let decipher = crypto.createDecipheriv('aes-192-cbc', key_AES, Buffer.from(iv, 'hex'))
+                let decipher = crypto.createDecipheriv('aes-192-ctr', key_AES, Buffer.from(iv, 'hex'))
                 let decrypted_msg = decipher.update(element.last_msg_content, 'hex', 'utf-8')
                 decrypted_msg += decipher.final('utf-8')
                 element.last_msg_content = decrypted_msg
@@ -86,7 +86,7 @@ export default class ConversationsController {
                     let key_AES = crypto.privateDecrypt(Buffer.from(session.get('key')), Buffer.from(key_encrypted, 'base64'))
     
                     //Decrypt message
-                    let decipher = crypto.createDecipheriv('aes-192-cbc', key_AES, Buffer.from(iv, 'hex'))
+                    let decipher = crypto.createDecipheriv('aes-192-ctr', key_AES, Buffer.from(iv, 'hex'))
                     let decrypted_msg = decipher.update(element.conversation.last_msg_content, 'hex', 'utf-8')
                     decrypted_msg += decipher.final('utf-8')
                     element.conversation.last_msg_content = decrypted_msg
@@ -116,33 +116,4 @@ export default class ConversationsController {
         }
     }
 
-    //Never used so not updated
-    /*  public async Post({ response, request, auth }: HttpContextContract): Promise<any> {
-            try {
-                //Checking Data
-                try {
-                    await request.validate(StoreConversationValidator)
-                } catch(e) {
-                    return parseInt(e.messages.errors[0].message)
-                }
-                //Getting Data
-                let { receiver, last_msg_content } = await request.validate(StoreConversationValidator)
-    
-                //Creating conv
-                let payload = {
-                    id: parseInt(String(Math.floor(Math.random() * Date.now())).slice(0, 10)),
-                    author: auth.user?.id,
-                    receiver: receiver,
-                    last_msg_content: last_msg_content,
-                    last_msg_author: auth.user?.id,
-                    last_msg_read: false,
-                }
-                await Conversation.create(payload)
-    
-                //Everything 😀
-                return response.created()
-            } catch(e) {
-                return response.internalServerError()
-            }
-        } */
 }
