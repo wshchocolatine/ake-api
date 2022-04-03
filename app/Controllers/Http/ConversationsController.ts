@@ -1,14 +1,157 @@
+/* 
+    Modules 
+*/
+
 import { HttpContextContract } from '@ioc:Adonis/Core/HttpContext';
-import Key from 'App/Models/Key'
 let crypto = require('crypto')
+
+/* 
+    Models 
+*/
+
+import Key from 'App/Models/Key'
 import Conversation from 'App/Models/Conversation';
 import User from 'App/Models/User'
 import Participant from 'App/Models/Participant';
+import Database from '@ioc:Adonis/Lucid/Database'
+import Message from 'App/Models/Message'
+
+/* 
+    Validators
+*/
+
+import StoreFirstMessageValidator from 'App/Validators/StoreConversationValidator'
+
+
 
 export default class ConversationsController {
+
+    /* 
+        NEW 
+
+        Used for creating a new conversation with someone 
+
+    */ 
+
+    public async New({ response, request, auth }: HttpContextContract): Promise<void> {
+        try {
+            //Checking data
+            try {
+                await request.validate(StoreFirstMessageValidator)
+            } catch (e) {
+                return response.badRequest({ status: "badRequest", errors: e })
+            }
+
+            //Getting data
+            let { receiver_username, receiver_tag, content } = await request.validate(StoreFirstMessageValidator)
+
+            //Getting the receiver_id
+            let receiver_id_array : User[]
+
+            receiver_id_array = await Database.from('users').where('username', receiver_username).andWhere('tag', receiver_tag).select('id')
+            if (receiver_id_array.length === 0) {
+                return response.badRequest({ status: "badRequest", errors: "This user doesn't exist" })
+            }
+
+            let receiver_id = receiver_id_array[0].id
+
+
+            //INSERTING DATA IN DB
+
+            //1.Ciphering msg
+            //Creating a key and an iv for aes-192-cbc
+            let key = crypto.randomBytes(24)
+            let iv = crypto.randomBytes(16)
+
+            //Creating the cipher
+            let cipher = crypto.createCipheriv('aes-192-ctr', key, iv)
+            let encrypted_msg = cipher.update(content, 'utf-8', 'hex')
+            encrypted_msg += cipher.final('hex')
+
+            //2.Preparing payloads
+            //Creating an id for the conv
+            let conv_id = parseInt(String(Math.floor(Math.random() * Date.now())).slice(0, 10))
+            //Creating id for the msg
+            let msg_id = parseInt(String(Math.floor(Math.random() * Date.now())).slice(0, 10))
+
+            let conv_payload = {
+                id: conv_id,
+                last_msg_content: encrypted_msg,
+                last_msg_author: auth.user!.id,
+                last_msg_read: false,
+                last_msg_id: msg_id
+            }
+
+            let msg_payload = {
+                id: msg_id,
+                author: auth.user!.id,
+                conversation_id: conv_id,
+                content: encrypted_msg,
+                read: false
+            }
+
+            //Ciphering the key and inserting it with the iv in the db
+            //Getting the public key of the receiver
+            let { public_key } = (await User.query().where('id', receiver_id).select('public_key'))[0]
+
+            //We will have to insert two rows in our db because owner and receiver will not have the same public key. So, we have to cipher for each of them
+            let owner_encrypted_key = crypto.publicEncrypt(Buffer.from(auth.user!.public_key), Buffer.from(key)).toString('base64')
+            let receiver_encrypted_key = crypto.publicEncrypt(Buffer.from(public_key), Buffer.from(key)).toString('base64')
+
+            //3.Inserting in DB
+
+            let trx = await Database.transaction()
+            try {
+                await Conversation.create(conv_payload, { client: trx })
+                await Participant.createMany([
+                    {
+                        user_id: auth.user!.id, 
+                        conversation_id: conv_id
+                    }, 
+                    {
+                        user_id: receiver_id,
+                        conversation_id: conv_id
+                    }
+                ], { client: trx })
+                await Message.create(msg_payload, { client: trx })
+                await Key.createMany([
+                    {
+                        conversation_id: conv_id,
+                        owner_id: auth.user!.id,
+                        key_encrypted: owner_encrypted_key,
+                        iv: iv.toString("hex")
+                    },
+                    {
+                        conversation_id: conv_id,
+                        owner_id: receiver_id,
+                        key_encrypted: receiver_encrypted_key,
+                        iv: iv.toString("hex")
+                    }
+                ], { client: trx })
+                await trx.commit()
+            } catch(e) {
+                await trx.rollback()
+                return response.internalServerError({ errors: e })
+            }
+
+            //Everything 😀
+            return response.created({ status: "created" })
+        } catch (e) {
+            return response.internalServerError({ status: "internalServerError", errors: e })
+        }
+    }
+
+
+    /* 
+        GET 
+
+        Used to get the last (by last message sent) 12 user's conversations from the parameter `offset`
+
+    */
+
     public async Get({ request, response, auth, session }: HttpContextContract): Promise<Array<object> | void> {
         try {
-            //@ts-ignore Get user_id
+            //Get user_id
             let user_id = auth.user!.id
             let { offset } = request.qs()
 
@@ -53,10 +196,18 @@ export default class ConversationsController {
         }
     }
 
+
+    /* 
+        SEARCH
+
+        Used for searching user's conversations
+
+    */
+
     public async Search({ request, response, auth, session }: HttpContextContract): Promise<any> {
         try {
             //Get search content + user_id
-            let { content } = request.qs()
+            let { query } = request.qs()
             let user_id = auth.user!.id
 
             //Get all conversations id where there is the connected user
@@ -70,7 +221,7 @@ export default class ConversationsController {
                 let dataEncrypted = await Participant.query()
                                                      .where('conversation_id', element.id)
                                                      .andWhereNot('user_id', user_id)
-                                                     .whereHas('users', (subQuery) => subQuery.where('username', 'like', `${content}%`))
+                                                     .whereHas('users', (subQuery) => subQuery.where('username', 'like', `${query}%`))
                                                      .preload('conversations', query => query.orderBy('updated_at', 'desc'))
                                                      .select('conversation_id', 'user_id')
 

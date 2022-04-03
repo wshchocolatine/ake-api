@@ -26,8 +26,9 @@ Route.post('login/:remember_me?', 'AuthController.Login')
 Route.get('logout', 'AuthController.Logout')
 
 Route.group(() => {
+    Route.post('conversations/new', 'ConversationsController.New')
     Route.get('conversations/get/:offset?', 'ConversationsController.Get')
-    Route.get('conversations/search/:content?', 'ConversationsController.Search')
+    Route.get('conversations/search/:query?', 'ConversationsController.Search')
 }).middleware('auth')
 
 Route.group(() => {
@@ -36,15 +37,14 @@ Route.group(() => {
     Route.get('/user/token', 'AuthController.Token')
     Route.post('/user/description', 'UsersController.Change_Description')
     Route.post('/user/username', 'UsersController.Change_Username')
-    Route.post('/user/picture', 'UsersController.Store_Profile_Picture')
-    Route.get('user/picture', 'UsersController.Get_Profile_Picture')
+/*     Route.post('/user/picture', 'UsersController.Store_Profile_Picture')
+    Route.get('user/picture', 'UsersController.Get_Profile_Picture') */
 }).middleware(['auth'])
 
 Route.group(() => {
-    Route.post('/message/first', 'MessagesController.First_Message')
     Route.post('/message/send', 'MessagesController.Send')
-    Route.get('/messages/get/:conv_id?:offset?', 'MessagesController.Get')
-    Route.get('/messages/read/:msg_id?', 'MessagesController.Read')
+    Route.get('/message/get/:conv_id?:offset?', 'MessagesController.Get')
+    Route.get('/message/read/:msg_id?', 'MessagesController.Read')
 }).middleware(['auth'])
 
 Route.get('/', () => {

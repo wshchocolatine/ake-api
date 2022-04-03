@@ -1,7 +1,7 @@
 import { schema, rules } from '@ioc:Adonis/Core/Validator'
 import { HttpContextContract } from '@ioc:Adonis/Core/HttpContext'
 
-export default class StoreConversationValidator {
+export default class StoreFirstMessageValidator {
   constructor (protected ctx: HttpContextContract) {
   }
 
@@ -25,9 +25,15 @@ export default class StoreConversationValidator {
 	 *    ```
 	 */
   public schema = schema.create({
-	  author: schema.number([rules.required()]),
-	  last_msg_content: schema.string({trim: true }, [rules.required()]),
-	  //last_msg_author: schema.number([rules.required()]),
+    receiver_username: schema.string({}, [
+		rules.required()
+	]),
+	receiver_tag: schema.number([
+		rules.required()
+	]),
+	content: schema.string({},[
+		rules.required()
+	])
   })
 
 	/**
@@ -43,7 +49,8 @@ export default class StoreConversationValidator {
 	 */
   public messages = {
 	  'required': 'The {{ field }} field is required',
-	  'number': 'The {{ field }} field should be a number',
+	  'email': 'The {{ field }} is not a valid email', 
+	  'exists': 'The {{ field }} field does not exists on our db',  //⚠️ This can be insecure to let people just request our api and know if an email is registered to it
 	  'string': 'The {{ field }} field should be a string'
   }
 }
