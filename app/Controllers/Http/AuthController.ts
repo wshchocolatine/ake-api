@@ -1,14 +1,29 @@
+/* 
+    Modules 
+*/
 import { HttpContextContract } from '@ioc:Adonis/Core/HttpContext'
-import User from 'App/Models/User'
-import LoginUserValidator from 'App/Validators/LoginUserValidator'
-import StoreUserValidator from 'App/Validators/StoreUserValidator'
-import FinishStoreUserValidator from 'App/Validators/FinishStoreUserValidator'
 import Database from '@ioc:Adonis/Lucid/Database'
-import { socketAuth } from '../../utils/socket-auth/index'
-//import { rword } from 'rword'
-
 let crypto = require('crypto')
 let CryptoJS = require('crypto-js')
+
+/* 
+    Models 
+*/
+import User from 'App/Models/User'
+
+/* 
+    Validators
+*/
+import LoginUserValidator from 'App/Validators/LoginUserValidator'
+import StoreUserValidator from 'App/Validators/StoreUserValidator'
+
+/* 
+    Utils
+*/
+import FinishStoreUserValidator from 'App/Validators/FinishStoreUserValidator'
+import { socketAuth } from '../../utils/socket-auth/index'
+
+
 
 export default class AuthController {
     public async Register({ response, request, session }: HttpContextContract): Promise<void> {

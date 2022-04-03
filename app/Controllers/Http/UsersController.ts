@@ -1,14 +1,24 @@
+/* 
+    Modules 
+*/
+
 import { HttpContextContract } from '@ioc:Adonis/Core/HttpContext'
-import StoreProfilePictureValidator from 'App/Validators/StoreProfilePictureValidator'
-import User from 'App/Models/User'
 import Application from '@ioc:Adonis/Core/Application'
+
+/* 
+    Models 
+*/
+
+import User from 'App/Models/User'
+
+/* 
+    Validators
+*/
+
+import StoreProfilePictureValidator from 'App/Validators/StoreProfilePictureValidator'
 import ChangeDescriptionValidator from 'App/Validators/ChangeDescriptionValidator'
 import ChangeUsernameValidator from 'App/Validators/ChangeUsernameValidator'
-/* import ChangePasswordValidator from 'App/Validators/ChangePasswordValidator'
-import Hash from '@ioc:Adonis/Core/Hash'
-import Key from 'App/Models/Key' 
 
-let crypto = require('crypto') */
 
 export default class UsersController {
     public async Account({ response, auth }: HttpContextContract): Promise<void> {
