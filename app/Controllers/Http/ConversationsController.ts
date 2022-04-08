@@ -1,54 +1,44 @@
-/* 
-    Modules 
-*/
-
 import { HttpContextContract } from '@ioc:Adonis/Core/HttpContext';
-let crypto = require('crypto')
-
-/* 
-    Models 
-*/
-
+import crypto from "crypto"
 import Key from 'App/Models/Key'
 import Conversation from 'App/Models/Conversation';
 import User from 'App/Models/User'
 import Participant from 'App/Models/Participant';
 import Database from '@ioc:Adonis/Lucid/Database'
 import Message from 'App/Models/Message'
-
-/* 
-    Validators
-*/
-
 import StoreFirstMessageValidator from 'App/Validators/StoreConversationValidator'
 
 
 
 export default class ConversationsController {
 
-    /* 
-        NEW 
 
-        Used for creating a new conversation with someone 
-
-    */ 
+    /**
+     *  NEW CONVERSATION
+     * 
+     *  Create a new conversation with an user 
+     * 
+     *  @route POST /conversations/new
+     * 
+     */
 
     public async New({ response, request, auth }: HttpContextContract): Promise<void> {
         try {
-            //Checking data
+
+            /**
+             * Getting data and validating it
+             */
+            
             try {
                 await request.validate(StoreFirstMessageValidator)
             } catch (e) {
                 return response.badRequest({ status: "badRequest", errors: e })
             }
 
-            //Getting data
             let { receiver_username, receiver_tag, content } = await request.validate(StoreFirstMessageValidator)
 
-            //Getting the receiver_id
-            let receiver_id_array : User[]
+            let receiver_id_array = await Database.from('users').where('username', receiver_username).andWhere('tag', receiver_tag).select('id')
 
-            receiver_id_array = await Database.from('users').where('username', receiver_username).andWhere('tag', receiver_tag).select('id')
             if (receiver_id_array.length === 0) {
                 return response.badRequest({ status: "badRequest", errors: "This user doesn't exist" })
             }
@@ -56,22 +46,34 @@ export default class ConversationsController {
             let receiver_id = receiver_id_array[0].id
 
 
-            //INSERTING DATA IN DB
+            /**
+             *  Ciphering the message with creating key and iv for aes-192-cbc
+             */
 
-            //1.Ciphering msg
-            //Creating a key and an iv for aes-192-cbc
             let key = crypto.randomBytes(24)
             let iv = crypto.randomBytes(16)
 
-            //Creating the cipher
             let cipher = crypto.createCipheriv('aes-192-ctr', key, iv)
             let encrypted_msg = cipher.update(content, 'utf-8', 'hex')
             encrypted_msg += cipher.final('hex')
 
-            //2.Preparing payloads
-            //Creating an id for the conv
+
+            /**
+             *  Ciphering the key of conversations with the keys of the participants. 
+             *  We will have to insert two rows in our db because participants will not have the same public key. So, we have to cipher for each of them.
+             */
+
+             let { public_key } = (await User.query().where('id', receiver_id).select('public_key'))[0] 
+
+             let owner_encrypted_key = crypto.publicEncrypt(Buffer.from(auth.user!.public_key), Buffer.from(key)).toString('base64')
+             let receiver_encrypted_key = crypto.publicEncrypt(Buffer.from(public_key), Buffer.from(key)).toString('base64')
+
+
+            /**
+             *  Preparing conversation and message payloads. Ids are created for each conversation and message.
+             */
+
             let conv_id = parseInt(String(Math.floor(Math.random() * Date.now())).slice(0, 10))
-            //Creating id for the msg
             let msg_id = parseInt(String(Math.floor(Math.random() * Date.now())).slice(0, 10))
 
             let conv_payload = {
@@ -90,15 +92,10 @@ export default class ConversationsController {
                 read: false
             }
 
-            //Ciphering the key and inserting it with the iv in the db
-            //Getting the public key of the receiver
-            let { public_key } = (await User.query().where('id', receiver_id).select('public_key'))[0]
-
-            //We will have to insert two rows in our db because owner and receiver will not have the same public key. So, we have to cipher for each of them
-            let owner_encrypted_key = crypto.publicEncrypt(Buffer.from(auth.user!.public_key), Buffer.from(key)).toString('base64')
-            let receiver_encrypted_key = crypto.publicEncrypt(Buffer.from(public_key), Buffer.from(key)).toString('base64')
-
-            //3.Inserting in DB
+            
+            /**
+             *  Inserting data into the database
+             */
 
             let trx = await Database.transaction()
             try {
@@ -142,33 +139,47 @@ export default class ConversationsController {
     }
 
 
-    /* 
-        GET 
 
-        Used to get the last (by last message sent) 12 user's conversations from the parameter `offset`
-
-    */
+    /**
+     *  GET CONVERSATION
+     * 
+     *  Get 12 of your conversations from :offset and classed by time of last message sent 
+     * 
+     *  @route GET  /conversations/get:offset?
+     * 
+     */
 
     public async Get({ request, response, auth, session }: HttpContextContract): Promise<Array<object> | void> {
         try {
-            //Get user_id
+            
+            /**
+             *  Getting data from the request
+             */
+
             let user_id = auth.user!.id
             let { offset } = request.qs()
 
-    //GETTING DATA FROM DB AND SENDING IT TO THE CLIENT
 
-        //1.Getting conversations and keys from the db
+            /**
+             *  Getting conversations and keys data from the db
+             */
+
             let user_conversations = await Conversation.query()
                                                         .preload('participants', (subquery) => subquery.select('user_id').whereNot('user_id', user_id))
                                                         .whereHas('participants', (subquery) => subquery.where('user_id', user_id))
                                                         .orderBy('updated_at', 'desc')
                                                         .offset(offset)
                                                         .limit(12)
+
             
-            //Deciphering it and adding username
+            /**
+             *  Deciphering conversations, serializing them, and adding the username of the receiver 
+             */
+        
             let user_conversations_serialized = user_conversations.map(element => element.serialize())
+            
             let user_conversations_map = user_conversations_serialized.map(async (element) => {
-                let conv_id = element.id //Getting the conv_id to get the key associated
+                let conv_id = element.id 
 
                 //Decrypt key_AES and get iv
                 let { key_encrypted, iv } = (await Key.query().where('conversation_id', conv_id).andWhere('owner_id', user_id).select('key_encrypted', 'iv'))[0]
@@ -188,6 +199,7 @@ export default class ConversationsController {
             })
 
             let data = await Promise.all(user_conversations_map)
+            
 
             //Everything 😀
             return response.status(200).json({ data: data, status: "ok" })
@@ -197,27 +209,45 @@ export default class ConversationsController {
     }
 
 
-    /* 
-        SEARCH
 
-        Used for searching user's conversations
-
-    */
+    /**
+     *  SEARCH CONVERSATION
+     * 
+     *  Search your conversation by username of the receiver 
+     * 
+     *  @route GET  /conversations/search:query?  
+     * 
+     */
 
     public async Search({ request, response, auth, session }: HttpContextContract): Promise<any> {
         try {
-            //Get search content + user_id
+            /**
+             *  Get data from request 
+             */
+
             let { query } = request.qs()
             let user_id = auth.user!.id
 
-            //Get all conversations id where there is the connected user
+            /**
+             *  Get conversation id from database
+             */
+            
             let user_conversations_id = await Conversation.query()
                                                           .whereHas('participants', (subQuery) => {
                                                               subQuery.where('user_id', user_id)
                                                           })
+                                                          
             
+            /**
+             *  Retrieving conversations filtered by the query parameter and deciphering it
+             */
+
             let data = user_conversations_id.map(async(element) => {
-                //Getting conversations 
+
+                /**
+                 *  Retrieving conversations filtered by the query parameter and serializing it 
+                 */
+ 
                 let dataEncrypted = await Participant.query()
                                                      .where('conversation_id', element.id)
                                                      .andWhereNot('user_id', user_id)
@@ -225,24 +255,31 @@ export default class ConversationsController {
                                                      .preload('conversations', query => query.orderBy('updated_at', 'desc'))
                                                      .select('conversation_id', 'user_id')
 
-                //Serialize data
                 let dataSerialized = dataEncrypted.map((conv) => conv.serialize())            
     
-                //Deciphering it and adding receiver_username
+                /**
+                 *  Deciphering the conversations and adding the redceiver's username to the data 
+                 */
+
                 let data_map = dataSerialized.map(async (element) => {
-                    let conv_id = element.conversation.id //Getting the conv_id to get the key associated
+                    let conv_id = element.conversation.id 
     
-                    //Decrypt key_AES and get iv
+                    /**
+                     *  Deciphering key and last message sent 
+                     */
+
                     let { key_encrypted, iv } = (await Key.query().where('conversation_id', conv_id).andWhere('owner_id', user_id).select('key_encrypted', 'iv'))[0]
                     let key_AES = crypto.privateDecrypt(Buffer.from(session.get('key')), Buffer.from(key_encrypted, 'base64'))
     
-                    //Decrypt message
                     let decipher = crypto.createDecipheriv('aes-192-ctr', key_AES, Buffer.from(iv, 'hex'))
                     let decrypted_msg = decipher.update(element.conversation.last_msg_content, 'hex', 'utf-8')
                     decrypted_msg += decipher.final('utf-8')
                     element.conversation.last_msg_content = decrypted_msg
 
-                    //Add receiver_username
+                    /**
+                     *  Adding receiver's username to data 
+                     */
+
                     let receiver_id = element.user_id
                     let { username } = (await User.query().where('id', receiver_id).select('username'))[0]
                     element.receiver_username = username
@@ -254,6 +291,7 @@ export default class ConversationsController {
                 })
     
                 let conversations = await Promise.all(data_map)
+
                 return conversations
             })
 

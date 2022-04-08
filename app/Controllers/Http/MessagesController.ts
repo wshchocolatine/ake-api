@@ -1,69 +1,65 @@
-/* 
-    Modules 
-*/
-
-
 import { HttpContextContract } from '@ioc:Adonis/Core/HttpContext'
 import Database from '@ioc:Adonis/Lucid/Database'
-let crypto = require('crypto')
-
-
-/* 
-    Models 
-*/
-
+import crypto from "crypto"
 import Conversation from 'App/Models/Conversation'
 import Key from 'App/Models/Key'
 import Message from 'App/Models/Message'
-
-/* 
-    Validators
-*/
-
 import StoreMessageValidator from 'App/Validators/StoreMessageValidator'
 
 
 
 export default class MessagesController {
+
+    /**
+     *  SEND MESSAGE 
+     * 
+     *  Send a basic message to an account on Ake. 
+     * 
+     *  @route POST  /message/send
+     * 
+     */
+
     public async Send({ response, request, auth, session }: HttpContextContract): Promise<void> {
         try {
-            //Checking data
+
+            /**
+             * Validating and getting data
+             */
+
             try {
                 await request.validate(StoreMessageValidator)
             } catch (e) {
                 return response.badRequest({ status: "badRequest", errors: e })
             }
 
-            //Checking auth
-            if (auth.user!.public_key === undefined) {
-                return response.internalServerError({ status: "internalServerError", errors: 'Erreur de session, contacte moi sur Discord' })
-            }
-
-            //Getting data
             let { conv_id, content } = await request.validate(StoreMessageValidator)
             let user_id = auth.user!.id
             
 
-            //INSERTING INTO DATABASE
+            /**
+             *  Getting key and iv from database and ciphering the message 
+             */
 
-            //1.Getting the key and the iv + encrypting the message
-            //Getting keys and iv
             let { key_encrypted, iv } = (await Key.query().where('conversation_id', conv_id).andWhere('owner_id', user_id).select('key_encrypted', 'iv'))[0]
             let key_AES = crypto.privateDecrypt(Buffer.from(session.get('key')), Buffer.from(key_encrypted, 'base64'))
 
-            //Encrypting message
             let cipher = crypto.createCipheriv('aes-192-ctr', key_AES, Buffer.from(iv, 'hex'))
             let encrypted_msg = cipher.update(content, 'utf-8', 'hex')
             encrypted_msg += cipher.final('hex')
 
-            //2.Posting message and updating conversation
-            //Creating transaction
+
+            /**
+             *  Posting message and updating conversation
+             */
+
             let trx = await Database.transaction()
             try {
-                //Creating an id for message
+                /**
+                 *  Creating and storing message into database
+                 */
+
                 let msg_id = parseInt(String(Math.floor(Math.random() * Date.now())).slice(0, 10))
 
-                //Inserting msg in db 
                 let msg_payload = {
                     id: msg_id,
                     author: auth.user!.id,
@@ -71,13 +67,17 @@ export default class MessagesController {
                     content: encrypted_msg,
                     read: false
                 }
+
                 await Message.create(msg_payload, { client: trx })
 
-                //Updating conversation
+
+                /**
+                 *  Updating conversation
+                 */
+
                 let conversation = await Conversation.findOrFail(conv_id, { client: trx })   //Find conversation
                 await conversation.merge({ last_msg_content: encrypted_msg, last_msg_author: auth.user!.id, last_msg_read: false, last_msg_id: msg_id }).useTransaction(trx).save()
 
-                //Commit changements
                 await trx.commit()
             } catch (e) {
                 await trx.rollback()
@@ -92,23 +92,38 @@ export default class MessagesController {
         }
     }
 
+
+    /**
+     *  GET MESSAGE 
+     * 
+     *  Get 50 message of a conversation filtered by date from offset parameter
+     * 
+     *  @route GET  /conversations/get:offset?
+     * 
+     */
+
     public async Get({ request, response, auth, session }: HttpContextContract): Promise<void> {
         try {
-            //Getting data
+            /**
+             *  Getting data from request
+             */
             let { conv_id, offset } = request.qs()
             let user_id = auth.user!.id
 
-            //QUERYING DB
 
-            //1.Getting encrypted messages and keys
-            //Getting keys and iv
+            /**
+             *  Getting encrypted messages, keys and iv from database
+             */
+
             let { key_encrypted, iv } = (await Key.query().where('conversation_id', conv_id).andWhere('owner_id', user_id).select('key_encrypted', 'iv'))[0]
             let key_AES = crypto.privateDecrypt(Buffer.from(session.get('key')), Buffer.from(key_encrypted, 'base64'))
 
-            //Getting messages
             let messages = await Message.query().where('conversation_id', conv_id).orderBy('created_at', 'desc').offset(offset).limit(50)
 
-            //2.Decrypting messages
+            /**
+             *  Deciphering messages and serializing them
+             */
+
             messages.forEach((element) => {
                 let decipher = crypto.createDecipheriv('aes-192-ctr', key_AES, Buffer.from(iv, 'hex'))
                 let decrypted_msg = decipher.update(element.content, 'hex', 'utf-8')
@@ -122,6 +137,15 @@ export default class MessagesController {
             return response.internalServerError({ status: "internalServerError", errors: e })
         }
     }
+
+
+    /**
+     *  READ MESSAGE
+     * 
+     *  Mark all message of an conversations as "read"
+     * 
+     *  @route GET  /message/read:msg_id?
+     */
 
     public async Read({ request, response }: HttpContextContract): Promise<void> {
         try {

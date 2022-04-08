@@ -1,20 +1,6 @@
-/* 
-    Modules 
-*/
-
 import { HttpContextContract } from '@ioc:Adonis/Core/HttpContext'
 import Application from '@ioc:Adonis/Core/Application'
-
-/* 
-    Models 
-*/
-
 import User from 'App/Models/User'
-
-/* 
-    Validators
-*/
-
 import StoreProfilePictureValidator from 'App/Validators/StoreProfilePictureValidator'
 import ChangeDescriptionValidator from 'App/Validators/ChangeDescriptionValidator'
 import ChangeUsernameValidator from 'App/Validators/ChangeUsernameValidator'
@@ -130,69 +116,4 @@ export default class UsersController {
             Application.tmpPath('uploads', `${user_id}.profilepicture`)
         )
     }
-
-/*     public async Change_Password({ request, response, auth, session }: HttpContextContract): Promise<void> {
-        try {
-            //Authenticating the request 
-            await auth.check()
-
-            //Getting data
-            let { seed_phrase, new_password, email } = await request.validate(ChangePasswordValidator)
-
-            //If user is already logged in 
-            if (auth.isLoggedIn) {
-                //Getting user's id and getting user informations
-                let user_id = auth.user!.id
-                let user = await User.findOrFail(user_id)
-
-                //Getting hashed seed phrase
-                let seed_phrase_hashed = user.seed_phrase
-
-                //Checking if seed phrase correct
-                if (await Hash.verify(seed_phrase_hashed, seed_phrase)) {
-                    //Changing user's password
-                    user.password = new_password
-                    user.private_key = session.get('key')
-                    await user.save()
-                } else {
-                    return response.unauthorized({ status: "unauthorized" })
-                }
-
-            } else {
-                //Getting user informations 
-                let user = await User.findByOrFail('email', email)
-
-                //Getting hashed seed phrase 
-                let seed_phrase_hashed = user.seed_phrase
-
-                //Checking if seed phrase is correct
-                if (await Hash.verify(seed_phrase_hashed, seed_phrase_hashed)) {
-                    //Recreating keys 
-                    let { privateKey, publicKey } = crypto.generateKeyPairSync('rsa', {
-                        modulusLength: 2048,
-                        publicKeyEncoding: { type: 'spki', format: 'pem' },
-                        privateKeyEncoding: { type: 'pkcs8', format: 'pem' }
-                    })
-
-                    let user_id = user.id
-
-                    let keys = await Key.query().where('owner_id', user_id)
-                    keys.forEach(key => {
-                        key.
-                    })
-
-                    //Updating user profile
-                    user.public_key = publicKey
-                    user.private_key = privateKey
-                    user.password = new_password
-                    await user.save()
-
-
-
-                } else {
-                    return response.unauthorized({ status : "unauthorized" })
-                }
-                
-            } */
-
 }
