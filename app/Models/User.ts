@@ -4,7 +4,7 @@ import Hash from '@ioc:Adonis/Core/Hash'
 import Participant from './Participant'
 import Key from './Key'
 import Message from './Message'
-let CryptoJS = require('crypto-js')
+import CryptoJS from "crypto-js"
 
 export default class User extends BaseModel {
   @hasMany(() => Participant, { foreignKey: 'user_id' })
