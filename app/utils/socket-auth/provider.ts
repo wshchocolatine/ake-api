@@ -31,7 +31,7 @@ export class TokenProvider {
         let ttl = Math.ceil(token.expiresAt.diffNow('seconds').seconds)
 
         await Redis.setex(
-            tokenId + token.userId.toString(),
+            "sockets:" + tokenId + token.userId.toString(),
             ttl, 
             JSON.stringify(payload)
         )
@@ -40,7 +40,7 @@ export class TokenProvider {
     }
 
     public async readToken(userId: number, tokenId: string, tokenCheckHash: string): Promise<any> {
-        let tokenObject = this.parseToken(await Redis.get(tokenId + userId.toString()))
+        let tokenObject = this.parseToken(await Redis.get("sockets:" + tokenId + userId.toString()))
         if(!tokenObject) {
             return null
         }
@@ -53,7 +53,7 @@ export class TokenProvider {
     }
 
     public async destroyToken(tokenId: string, userId: number): Promise<void> {
-        await Redis.del(tokenId + userId)
+        await Redis.del("sockets:" + tokenId + userId)
     }
 }
 

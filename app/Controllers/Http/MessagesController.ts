@@ -1,5 +1,7 @@
 import { HttpContextContract } from '@ioc:Adonis/Core/HttpContext'
 import Database from '@ioc:Adonis/Lucid/Database'
+import { base64 } from '@ioc:Adonis/Core/Helpers'
+import Redis from '@ioc:Adonis/Addons/Redis'
 import crypto from "crypto"
 import Conversation from 'App/Models/Conversation'
 import Key from 'App/Models/Key'
@@ -34,6 +36,30 @@ export default class MessagesController {
 
             let { conv_id, content } = await request.validate(StoreMessageValidator)
             let user_id = auth.user!.id
+
+			/**
+             *  Getting private key, if session auth : it is in sessions cookies, if token auth : it is in the meta of the token
+             */
+
+			let private_key: string
+			let authorization_header = request.header('authorization')
+			 
+			if ( authorization_header !== undefined) {
+				let parts = authorization_header.split(' ')
+				let tokenParts = parts[1].split('.')
+				 
+				let tokenId = base64.urlDecode(tokenParts[0])
+				let token = await Redis.get(`api:${tokenId}`)
+				 
+				if (!token) {
+				 return 
+				}
+				 
+				let tokenObject = JSON.parse(token)
+				private_key = tokenObject.meta.privateKey
+			} else {
+			    private_key = session.get('key')
+			}
             
 
             /**
@@ -41,7 +67,7 @@ export default class MessagesController {
              */
 
             let { key_encrypted, iv } = (await Key.query().where('conversation_id', conv_id).andWhere('owner_id', user_id).select('key_encrypted', 'iv'))[0]
-            let key_AES = crypto.privateDecrypt(Buffer.from(session.get('key')), Buffer.from(key_encrypted, 'base64'))
+            let key_AES = crypto.privateDecrypt(Buffer.from(private_key), Buffer.from(key_encrypted, 'base64'))
 
             let cipher = crypto.createCipheriv('aes-192-ctr', key_AES, Buffer.from(iv, 'hex'))
             let encrypted_msg = cipher.update(content, 'utf-8', 'hex')
@@ -110,13 +136,37 @@ export default class MessagesController {
             let { conv_id, offset } = request.qs()
             let user_id = auth.user!.id
 
+			/**
+			 * 	Getting private key, if session auth : it is in sessions cookies, if token auth : it is in the meta of the token
+			 */
+
+			let private_key: string
+			let authorization_header = request.header('authorization')
+			
+			if ( authorization_header !== undefined) {
+				let parts = authorization_header.split(' ')
+				let tokenParts = parts[1].split('.')
+				
+				let tokenId = base64.urlDecode(tokenParts[0])
+				let token = await Redis.get(`api:${tokenId}`)
+				
+				if (!token) {
+					return 
+				}
+				
+				let tokenObject = JSON.parse(token)
+				private_key = tokenObject.meta.privateKey
+			} else {
+				private_key = session.get('key')
+			}
+
 
             /**
              *  Getting encrypted messages, keys and iv from database
              */
 
             let { key_encrypted, iv } = (await Key.query().where('conversation_id', conv_id).andWhere('owner_id', user_id).select('key_encrypted', 'iv'))[0]
-            let key_AES = crypto.privateDecrypt(Buffer.from(session.get('key')), Buffer.from(key_encrypted, 'base64'))
+            let key_AES = crypto.privateDecrypt(Buffer.from(private_key), Buffer.from(key_encrypted, 'base64'))
 
             let messages = await Message.query().where('conversation_id', conv_id).orderBy('created_at', 'desc').offset(offset).limit(50)
 

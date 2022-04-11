@@ -1,12 +1,14 @@
 import { HttpContextContract } from '@ioc:Adonis/Core/HttpContext';
+import Database from '@ioc:Adonis/Lucid/Database'
+import {base64} from '@ioc:Adonis/Core/Helpers'
 import crypto from "crypto"
 import Key from 'App/Models/Key'
 import Conversation from 'App/Models/Conversation';
 import User from 'App/Models/User'
 import Participant from 'App/Models/Participant';
-import Database from '@ioc:Adonis/Lucid/Database'
 import Message from 'App/Models/Message'
 import StoreFirstMessageValidator from 'App/Validators/StoreConversationValidator'
+import Redis from '@ioc:Adonis/Addons/Redis';
 
 
 
@@ -44,6 +46,19 @@ export default class ConversationsController {
             }
 
             let receiver_id = receiver_id_array[0].id
+
+
+            /**
+             *  Checking if a conversations already exists between these users
+             */
+
+            let conversation_exists = await Conversation.query()
+                                                            .whereHas('participants', (subquery) => subquery.where('user_id', auth.user!.id))
+                                                            .andWhereHas('participants', (subquery) => subquery.where('user_id', receiver_id))
+            
+            if (conversation_exists.length >= 1) {
+                return response.conflict({ status: "conflict", errors: "There is already a conversation between these users ! "})
+            }
 
 
             /**
@@ -143,7 +158,8 @@ export default class ConversationsController {
     /**
      *  GET CONVERSATION
      * 
-     *  Get 12 of your conversations from :offset and classed by time of last message sent 
+     *  Get 12 of your conversations from :offset and classed by time of last message sent.
+     *  This route is not returning the messages of your conversations. If you want this, check /messages/get:conv_id? on MessagesController
      * 
      *  @route GET  /conversations/get:offset?
      * 
@@ -153,11 +169,36 @@ export default class ConversationsController {
         try {
             
             /**
-             *  Getting data from the request
+             *  Getting data from the request and get private key
              */
 
             let user_id = auth.user!.id
             let { offset } = request.qs()
+
+
+            /**
+             *  Getting private key, if session auth : it is in sessions cookies, if token auth : it is in the meta of the token
+             */
+            
+            let private_key: string
+            let authorization_header = request.header('authorization')
+
+            if ( authorization_header !== undefined) {
+                let parts = authorization_header.split(' ')
+                let tokenParts = parts[1].split('.')
+
+                let tokenId = base64.urlDecode(tokenParts[0])
+                let token = await Redis.get(`api:${tokenId}`)
+
+                if (!token) {
+                    return 
+                }
+
+                let tokenObject = JSON.parse(token)
+                private_key = tokenObject.meta.privateKey
+            } else {
+                private_key = session.get('key')
+            }
 
 
             /**
@@ -183,7 +224,7 @@ export default class ConversationsController {
 
                 //Decrypt key_AES and get iv
                 let { key_encrypted, iv } = (await Key.query().where('conversation_id', conv_id).andWhere('owner_id', user_id).select('key_encrypted', 'iv'))[0]
-                let key_AES = crypto.privateDecrypt(Buffer.from(session.get('key')), Buffer.from(key_encrypted, 'base64'))
+                let key_AES = crypto.privateDecrypt(Buffer.from(private_key), Buffer.from(key_encrypted, 'base64'))
 
                 //Decrypt message
                 let decipher = crypto.createDecipheriv('aes-192-ctr', key_AES, Buffer.from(iv, 'hex'))
@@ -193,7 +234,7 @@ export default class ConversationsController {
 
                 //Adding receiver username 
                 let { username } = (await User.query().where('id', element.participants[0].user_id).select('username'))[0]
-                delete element.participants
+                // delete element.participants
                 element.receiver_username = username
                 return element
             })
@@ -204,6 +245,7 @@ export default class ConversationsController {
             //Everything 😀
             return response.status(200).json({ data: data, status: "ok" })
         } catch (e) {
+            console.log(e)
             return response.internalServerError({ status: "internalServerError", errors: e })
         }
     }
@@ -225,8 +267,37 @@ export default class ConversationsController {
              *  Get data from request 
              */
 
-            let { query } = request.qs()
+            let { query, offset } = request.qs()
             let user_id = auth.user!.id
+
+            if (typeof offset !== "number") {
+                return response.badRequest({ status: "badRequest" })
+            }
+
+            /**
+             *  Getting private key, if session auth : it is in sessions cookies, if token auth : it is in the meta of the token
+             */
+            
+            let private_key: string
+            let authorization_header = request.header('authorization')
+            
+            if ( authorization_header !== undefined) {
+                let parts = authorization_header.split(' ')
+                let tokenParts = parts[1].split('.')
+                
+                let tokenId = base64.urlDecode(tokenParts[0])
+                let token = await Redis.get(`api:${tokenId}`)
+                
+                if (!token) {
+                    return 
+                }
+                
+                let tokenObject = JSON.parse(token)
+                private_key = tokenObject.meta.privateKey
+            } else {
+                private_key = session.get('key')
+            }
+            
 
             /**
              *  Get conversation id from database
@@ -253,7 +324,9 @@ export default class ConversationsController {
                                                      .andWhereNot('user_id', user_id)
                                                      .whereHas('users', (subQuery) => subQuery.where('username', 'like', `${query}%`))
                                                      .preload('conversations', query => query.orderBy('updated_at', 'desc'))
+                                                     .offset(offset)
                                                      .select('conversation_id', 'user_id')
+                                                     .limit(12)
 
                 let dataSerialized = dataEncrypted.map((conv) => conv.serialize())            
     
@@ -269,7 +342,7 @@ export default class ConversationsController {
                      */
 
                     let { key_encrypted, iv } = (await Key.query().where('conversation_id', conv_id).andWhere('owner_id', user_id).select('key_encrypted', 'iv'))[0]
-                    let key_AES = crypto.privateDecrypt(Buffer.from(session.get('key')), Buffer.from(key_encrypted, 'base64'))
+                    let key_AES = crypto.privateDecrypt(Buffer.from(private_key), Buffer.from(key_encrypted, 'base64'))
     
                     let decipher = crypto.createDecipheriv('aes-192-ctr', key_AES, Buffer.from(iv, 'hex'))
                     let decrypted_msg = decipher.update(element.conversation.last_msg_content, 'hex', 'utf-8')
