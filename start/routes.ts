@@ -22,14 +22,22 @@ import Route from '@ioc:Adonis/Core/Route'
 
 Route.post('register', 'AuthController.Register')
 Route.post('register/finish', 'AuthController.Finish_Register')
-Route.post('login/:remember_me?', 'AuthController.Login')
+Route.post('login', 'AuthController.Login')
 Route.get('logout', 'AuthController.Logout')
+
+/**
+ * Conversations routes
+ */
 
 Route.group(() => {
     Route.post('conversations/new', 'ConversationsController.New')
     Route.get('conversations/get/:offset?', 'ConversationsController.Get')
-    Route.get('conversations/search/:query?', 'ConversationsController.Search')
-}).middleware('auth')
+    Route.get('conversations/search/:query?:offset', 'ConversationsController.Search')
+}).middleware('auth:api,web')
+
+/**
+ * User routes
+ */
 
 Route.group(() => {
     Route.get('/user/account', 'UsersController.Account')
@@ -39,13 +47,17 @@ Route.group(() => {
     Route.post('/user/username', 'UsersController.Change_Username')
 /*     Route.post('/user/picture', 'UsersController.Store_Profile_Picture')
     Route.get('user/picture', 'UsersController.Get_Profile_Picture') */
-}).middleware(['auth'])
+}).middleware('auth:api,web')
+
+/**
+ *  Messages routes
+ */
 
 Route.group(() => {
     Route.post('/message/send', 'MessagesController.Send')
     Route.get('/message/get/:conv_id?:offset?', 'MessagesController.Get')
     Route.get('/message/read/:msg_id?', 'MessagesController.Read')
-}).middleware(['auth'])
+}).middleware('auth:api,web')
 
 Route.get('/', () => {
     return "Hey!! Welcome to Ake's api. Hope you will enjoy the trip :)"

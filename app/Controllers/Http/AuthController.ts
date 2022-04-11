@@ -87,7 +87,7 @@ export default class AuthController {
                  *  Generating user's id and keys
                  */
 
-                async function generateId() {
+                async function generateId(): Promise<number> {
                     let id = Math.floor(Math.random() * 10000)
                     if ((await Database.from('users').where('username', username).andWhere('tag', id)).length >= 1) {
                         return await generateId()
@@ -125,11 +125,17 @@ export default class AuthController {
                 //Clearing session
                 session.clear()
 
-                //Put key into session
-                session.put('key', privateKey)
+                /**
+                 *  Login user, if :token? param is passed, we logged the user with a token. Otherwise, it is with basic sessions cookies.
+                 */
 
-                //Login User
-                await auth.login(user)
+                if (request.qs().token !== undefined) {
+                    let token = await auth.use('api').attempt(email, password, { name: 'For the CLI app', expiresIn: '30mins', meta: { privateKey }})
+                    return response.created({ status: "created", data: { token }})
+                }
+
+                session.put('key', privateKey)
+                await auth.use('web').login(user)
 
                 return response.created({ status: "created" })
             } else {
@@ -152,7 +158,6 @@ export default class AuthController {
 
     public async Login({ response, request, auth, session }: HttpContextContract): Promise<void> {
         try {
-            //Checking data
             try {
                 await request.validate(LoginUserValidator)
             } catch (e) {
@@ -164,12 +169,26 @@ export default class AuthController {
 
             //Login user
             try {
-                await auth.attempt(email, password)
-                session.put('key', CryptoJS.enc.Utf8.stringify(CryptoJS.AES.decrypt(auth.user!.private_key, password)))
-                return response.created({ status: "created" })
+                //Token authentication
+                if (request.qs().token !== undefined) {
+                    let priavte_key_encrypted: string = (await User.query().where('email', email))[0].private_key
+                    let privateKey: string = CryptoJS.enc.Utf8.stringify(CryptoJS.AES.decrypt(priavte_key_encrypted, password))
+
+                    let token = await auth.use('api').attempt(email, password, { name: 'For the CLI app', expiresIn: '30mins', meta: { privateKey }})
+
+                    return response.created({ status: 'created', data: { token } })
+                } 
+                
+                //Web authentication
+                else {
+                    await auth.use('web').attempt(email, password)
+                    session.put('key', CryptoJS.enc.Utf8.stringify(CryptoJS.AES.decrypt(auth.user!.private_key, password)))
+                    return response.created({ status: "created" })
+                }
             } catch (e) {
                 //Returning bad credentials
-                return response.unauthorized({ status: "unauthorized" })
+                console.log(e)
+                return response.unauthorized({ status: "unauthorized", errors: e })
             }
         } catch (e) {
             return response.internalServerError({ status: "internalServerError", errors: e })
@@ -187,10 +206,15 @@ export default class AuthController {
      * 
      */
 
-    public async Logout({ response, auth }: HttpContextContract): Promise<void> {
+    public async Logout({ request, response, auth }: HttpContextContract): Promise<void> {
         try {
-            //Logout user
-            await auth.logout()
+
+            if (request.qs().token !== undefined) {
+                await auth.use('api').revoke()
+            } else {
+                await auth.use('web').logout()
+            }
+            
 
             //Everything good
             return response.created({ status: "ok" })
