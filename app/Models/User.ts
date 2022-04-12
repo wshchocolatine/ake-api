@@ -40,9 +40,6 @@ export default class User extends BaseModel {
   @column({ serializeAs: null })
   public public_key: string
 
-  @column({ serializeAs: null })
-  public is_changing_password: boolean
-
   @column.dateTime({ autoCreate: true, serializeAs: null })
   public createdAt: DateTime
 

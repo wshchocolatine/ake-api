@@ -117,7 +117,6 @@ export default class AuthController {
                     password: password,
                     private_key: privateKey,
                     public_key: publicKey,
-                    is_changing_password: false,
                 }
 
                 let user = await User.create(payload)
