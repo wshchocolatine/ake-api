@@ -6,7 +6,6 @@ import CryptoJS from "crypto-js"
 import User from 'App/Models/User'
 import LoginUserValidator from 'App/Validators/LoginUserValidator'
 import StoreUserValidator from 'App/Validators/StoreUserValidator'
-import FinishStoreUserValidator from 'App/Validators/FinishStoreUserValidator'
 import { socketAuth } from '../../utils/socket-auth/index'
 
 
@@ -23,7 +22,7 @@ export default class AuthController {
      * 
      */
 
-    public async Register({ response, request, session }: HttpContextContract): Promise<void> {
+    public async Register({ response, request, session, auth }: HttpContextContract): Promise<void> {
         try {
 
             /**
@@ -37,15 +36,61 @@ export default class AuthController {
                 return response.status(parseInt(status)).json({ status: "badRequest", errors : e })
             }
 
-            let { username, email, password } = await request.validate(StoreUserValidator)
+            let { username, email, password, description } = await request.validate(StoreUserValidator)
+            
 
             /**
-             *  Keeping data in session to finish the register process when user will call /register/finish
+             *  Generating user's id and keys
              */
 
-            session.put('username', username)
-            session.put('email', email)
-            session.put('password', password)
+            async function generateTag(): Promise<number> {
+                let id = Math.floor(Math.random() * 10000)
+                if ((await Database.from('users').where('username', username).andWhere('tag', id)).length >= 1) {
+                    return await generateTag()
+                }
+                return id
+            }
+            let tag = await generateTag()
+
+
+            let { privateKey, publicKey } = crypto.generateKeyPairSync('rsa', {
+                modulusLength: 2048,
+                publicKeyEncoding: { type: 'spki', format: 'pem' },
+                privateKeyEncoding: { type: 'pkcs8', format: 'pem' }
+            })
+
+
+            /**
+             *  Creating user's payload and storing it into database
+             */
+
+            let payload = {
+                id: parseInt(String(Math.floor(Math.random() * Date.now())).slice(0, 10)),
+                username: username,
+                tag: tag,
+                email: email,
+                description: description,
+                password: password,
+                private_key: privateKey,
+                public_key: publicKey,
+            }
+
+            let user = await User.create(payload)
+
+            //Clearing session
+            session.clear()
+
+            /**
+             *  Login user, if :token? param is passed, we logged the user with a token. Otherwise, it is with basic sessions cookies.
+             */
+
+            if (request.qs().token !== undefined) {
+                let token = await auth.use('api').attempt(email, password, { name: 'For the CLI app', expiresIn: '30mins', meta: { privateKey }})
+                return response.created({ status: "created", data: { token }})
+            }
+
+            session.put('key', privateKey)
+            await auth.use('web').login(user)
 
             return response.created({ status: "created" })
         } catch (e) {
@@ -53,97 +98,6 @@ export default class AuthController {
         }
     }
 
-
-    /**
-     *  FINISH REGISTER 
-     * 
-     *  Create an account on Ake. 
-     *  It create an account on Ake and store it into database. You must call /register before. 
-     * 
-     *  @route POST  /register/finish
-     *  
-     */
-
-    public async Finish_Register({ request, response, session, auth }: HttpContextContract): Promise<any> {
-        try {
-            //If he has not started the first step of register, we stop it here
-            if (session.has('username')) {
-
-                /**
-                 *  Validating and getting data
-                 */
-
-                try {
-                    await request.validate(FinishStoreUserValidator)
-                } catch (e) {
-                    return response.badRequest({ status: "badRequest", errors: e })
-                }
-
-                let { description } = await request.validate(FinishStoreUserValidator)
-                let { username, email, password } = session.all()
-
-
-                /**
-                 *  Generating user's id and keys
-                 */
-
-                async function generateId(): Promise<number> {
-                    let id = Math.floor(Math.random() * 10000)
-                    if ((await Database.from('users').where('username', username).andWhere('tag', id)).length >= 1) {
-                        return await generateId()
-                    }
-                    return id
-                }
-                let tag = await generateId()
-
-
-                let { privateKey, publicKey } = crypto.generateKeyPairSync('rsa', {
-                    modulusLength: 2048,
-                    publicKeyEncoding: { type: 'spki', format: 'pem' },
-                    privateKeyEncoding: { type: 'pkcs8', format: 'pem' }
-                })
-
-
-                /**
-                 *  Creating user's payload and storing it into database
-                 */
-
-                let payload = {
-                    id: parseInt(String(Math.floor(Math.random() * Date.now())).slice(0, 10)),
-                    username: username,
-                    tag: tag,
-                    email: email,
-                    description: description,
-                    password: password,
-                    private_key: privateKey,
-                    public_key: publicKey,
-                }
-
-                let user = await User.create(payload)
-
-                //Clearing session
-                session.clear()
-
-                /**
-                 *  Login user, if :token? param is passed, we logged the user with a token. Otherwise, it is with basic sessions cookies.
-                 */
-
-                if (request.qs().token !== undefined) {
-                    let token = await auth.use('api').attempt(email, password, { name: 'For the CLI app', expiresIn: '30mins', meta: { privateKey }})
-                    return response.created({ status: "created", data: { token }})
-                }
-
-                session.put('key', privateKey)
-                await auth.use('web').login(user)
-
-                return response.created({ status: "created" })
-            } else {
-                return response.forbidden({ status: "forbidden" })
-            }
-        } catch (e) {
-            return response.internalServerError({ status: "internalServerError", errors: e })
-        }
-    }
 
 
     /**

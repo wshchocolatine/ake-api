@@ -23,9 +23,21 @@
     "@adonisjs/lucid",
     "@adonisjs/auth",
     "@adonisjs/session",
-    "@adonisjs/redis"
+    "@adonisjs/redis",
+    "@japa/preset-adonis/TestsProvider"
   ],
   "aceProviders": [
     "@adonisjs/repl"
-  ]
+  ],
+  "tests": {
+    "suites": [
+      {
+        "name": "functional",
+        "files": [
+          "tests/functional/**/*.spec(.ts|.js)"
+        ],
+        "timeout": 60000
+      }
+    ]
+  }
 }

@@ -25,18 +25,29 @@ export default class StoreUserValidator {
 	 *    ```
 	 */
   public schema = schema.create({
-	  username: schema.string({ trim: true }, [rules.required()]),
-	  email: schema.string({ trim: true }, [
-		  rules.email(),
+	  username: schema.string([rules.trim(), rules.required()]),
+	  email: schema.string([
+		  rules.trim(),
+		  rules.email({
+			  sanitize: {
+				  lowerCase: true
+			  }
+		  }), 
 		  rules.unique({
-			  table: 'users',
-			  column: 'email'
-		  }),
-		  rules.required()
+			table: 'users',
+			column: 'email'
+		}),
+		rules.required()
 	  ]),
-	  password: schema.string({ trim: true }, [
+	  password: schema.string([
+		  rules.trim(),
 		  rules.required(),
 		  rules.regex(new RegExp('(?=^.{8,}$)(?=.*[0-9])(?=.*[A-Z])(?=.*[a-z])(?=.*[!@#$%^&*]+).*$'))
+	  ]), 
+	  description: schema.string([
+		  rules.trim(),
+		  rules.required(),
+		  rules.maxLength(255)
 	  ])
   })
 
