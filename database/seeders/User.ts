@@ -8,9 +8,14 @@ export default class UserSeeder extends BaseSeeder {
           {
             username: 'louis', 
             email: 'louis@ake-app.com'
-          }, {
+          }, 
+          {
             username: 'marin', 
             email: 'marin@ake-app.com'
+          }, 
+          {
+            username: 'ake', 
+            email: 'ake@ake-app.com'
           }
         ])
         .createMany(2)

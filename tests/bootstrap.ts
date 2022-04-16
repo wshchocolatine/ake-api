@@ -5,7 +5,7 @@
  * file.
  */
 
-import type { Config } from '@japa/runner'
+import { Config } from '@japa/runner'
 import TestUtils from '@ioc:Adonis/Core/TestUtils'
 import { assert, runFailedTests, specReporter, apiClient } from '@japa/preset-adonis'
 
@@ -38,7 +38,7 @@ export const reporters: Config['reporters'] = [specReporter()]
 |--------------------------------------------------------------------------
 | Runner hooks
 |--------------------------------------------------------------------------
-|
+| 
 | Runner hooks are executed after booting the AdonisJS app and
 | before the test files are imported.
 |

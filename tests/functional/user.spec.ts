@@ -8,8 +8,6 @@ test.group('User', () => {
   
     let response = await client.get('/user/account').loginAs(user)
   
-    console.log(response.response.body)
-  
     response.assertStatus(200)
     response.assertBodyContains({ data: {}, status: 'ok'})
   })
@@ -20,8 +18,6 @@ test.group('User', () => {
 
     let url = '/user/other/account?user_id=' + other_user.id
     let response = await client.get(url).loginAs(user)
-
-    console.log(response.response.body)
 
     response.assertStatus(200) 
     response.assertBodyContains({ data: {}, status: 'ok'})

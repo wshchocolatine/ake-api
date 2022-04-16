@@ -1,8 +1,9 @@
 import { test } from '@japa/runner'
 import faker from '@faker-js/faker'
 import User from 'App/Models/User'
+import redis from '@ioc:Adonis/Addons/Redis'
 
-test.group('Auth', () => {
+test.group('Auth', async () => {
   test('Register', async ({ client }) => {
     let payload = {
       username: faker.internet.userName(), 
@@ -11,11 +12,10 @@ test.group('Auth', () => {
       description: faker.lorem.sentence()
     }
 
-    console.log(payload)
-
-    let response = await client.post('/register').form(payload)
+    let response = await client.post('/register?token=true').form(payload)
 
     response.assertStatus(201)
+    response.assertBodyContains({ data: {}, status: 'created' })
   }) 
 
   test('Login', async ({ client }) => {
@@ -24,9 +24,10 @@ test.group('Auth', () => {
       password: 'secret'
     }
 
-    let response = await client.post('/login').form(payload)
+    let response = await client.post('/login?token=true').form(payload)
 
     response.assertStatus(201)
+    response.assertBodyContains({ data: {}, status: 'created' })
   })
 
   test('Logout', async ({ client }) => {
@@ -42,7 +43,9 @@ test.group('Auth', () => {
 
     let response = await client.get('/user/token').loginAs(user)
 
-    response.assertStatus(200)
-    response.assertBodyContains({ data: {}, status: 'ok' })
+    response.assertStatus(201)
+    response.assertBodyContains({ status: 'created', data: {} })
   })
+
+  await redis.flushall()
 })

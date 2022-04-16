@@ -1,18 +1,20 @@
 import Factory from '@ioc:Adonis/Lucid/Factory'
 import crypto from 'crypto'
 import User from 'App/Models/User'
+// import Conversation from 'App/Models/Conversation'
+// import Key from 'App/Models/Key'
+// import Participant from 'App/Models/Participant'
+// import Message from 'App/Models/Message'
+// import Message from 'App/Models/Message'
 
 
 export const UserFactory = Factory 
     .define(User, ({ faker }) => {
-
         let { privateKey, publicKey } = crypto.generateKeyPairSync('rsa', {
             modulusLength: 2048,
             publicKeyEncoding: { type: 'spki', format: 'pem' },
             privateKeyEncoding: { type: 'pkcs8', format: 'pem' }
         })
-
-        console.log(privateKey)
 
         return { 
             username: faker.internet.userName(), 
@@ -24,9 +26,4 @@ export const UserFactory = Factory
             public_key: publicKey
         }
     })
-    .before('create', (_, model) => {
-        console.log(model.private_key)
-    })
     .build()
-
-
