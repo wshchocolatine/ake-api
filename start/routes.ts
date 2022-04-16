@@ -21,7 +21,6 @@
 import Route from '@ioc:Adonis/Core/Route'
 
 Route.post('register', 'AuthController.Register')
-Route.post('register/finish', 'AuthController.Finish_Register')
 Route.post('login', 'AuthController.Login')
 Route.get('logout', 'AuthController.Logout')
 

@@ -8,9 +8,8 @@ export default class Conversations extends BaseSchema {
       table.bigIncrements('id').unsigned()
       table.text('last_msg_content')
       table.bigInteger('last_msg_author').unsigned()
-      table.boolean('last_msg_read')
       table.bigInteger('last_msg_id')
-
+      table.boolean('last_msg_read')
       table.timestamp('created_at', { useTz: true })
       table.timestamp('updated_at', { useTz: true })
     })

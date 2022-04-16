@@ -19,5 +19,5 @@ export default Env.rules({
 	PORT: Env.schema.number(),
 	APP_KEY: Env.schema.string(),
 	APP_NAME: Env.schema.string(),
-	NODE_ENV: Env.schema.enum(['development', 'production', 'testing'] as const),
+	NODE_ENV: Env.schema.enum(['development', 'production', 'test'] as const),
 })
