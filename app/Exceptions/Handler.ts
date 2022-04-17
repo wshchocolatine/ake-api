@@ -14,10 +14,22 @@
 */
 
 import Logger from '@ioc:Adonis/Core/Logger'
+import { HttpContextContract } from '@ioc:Adonis/Core/HttpContext'
 import HttpExceptionHandler from '@ioc:Adonis/Core/HttpExceptionHandler'
+const status = require("http-status")
 
 export default class ExceptionHandler extends HttpExceptionHandler {
   constructor () {
     super(Logger)
+  }
+
+  public async handle(error: any, ctx: HttpContextContract) {
+    if (error.code === 'E_VALIDATION_FAILURE') {
+      const statusNumber: number = error.messages.errors[0].message.split(':')[0]
+      return ctx.response.status(statusNumber).json({
+        status: status[statusNumber], 
+        errors: error.messages.errors[0]
+      })
+    }
   }
 }

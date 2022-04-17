@@ -48,9 +48,9 @@ export default class StoreFirstMessageValidator {
 	 *
 	 */
   public messages = {
-	  'required': 'The {{ field }} field is required',
-	  'email': 'The {{ field }} is not a valid email', 
-	  'exists': 'The {{ field }} field does not exists on our db',  //⚠️ This can be insecure to let people just request our api and know if an email is registered to it
-	  'string': 'The {{ field }} field should be a string'
+	  'required': '400:The {{ field }} field is required',
+	  'email': '400:The {{ field }} is not a valid email', 
+	  'exists': '400:The {{ field }} field does not exists on our db',  //⚠️ This can be insecure to let people just request our api and know if an email is registered to it
+	  'string': '400:The {{ field }} field should be a string'
   }
 }

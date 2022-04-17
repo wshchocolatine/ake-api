@@ -11,192 +11,161 @@ import { socketAuth } from '../../utils/socket-auth/index'
 
 
 export default class AuthController {
-
+    
     /**
-     *  REGISTER 
-     * 
-     *  Create an account on Ake. 
-     *  It doesn't create an account in database but allows you to start the second step of the register process. 
-     * 
-     *  @route POST  /register 
-     * 
-     */
-
+    *  REGISTER 
+    * 
+    *  Create an account on Ake. 
+    *  It doesn't create an account in database but allows you to start the second step of the register process. 
+    * 
+    *  @route POST  /register 
+    * 
+    */
+    
     public async Register({ response, request, session, auth }: HttpContextContract): Promise<void> {
-        try {
-
-            /**
-             *  Validating and getting data
-             */
-
-            try {
-                await request.validate(StoreUserValidator)
-            } catch (e) {
-                let status = e.messages.errors[0].message.split(':')[0]
-                return response.status(parseInt(status)).json({ status: "badRequest", errors : e })
+        
+        /**
+        *  Validating and getting data
+        */
+        
+        let { username, email, password, description } = await request.validate(StoreUserValidator)
+        
+        
+        /**
+        *  Generating user's id and keys
+        */
+        
+        async function generateTag(): Promise<number> {
+            let id = Math.floor(Math.random() * 10000)
+            if ((await Database.from('users').where('username', username).andWhere('tag', id)).length >= 1) {
+                return await generateTag()
             }
-
-            let { username, email, password, description } = await request.validate(StoreUserValidator)
-            
-
-            /**
-             *  Generating user's id and keys
-             */
-
-            async function generateTag(): Promise<number> {
-                let id = Math.floor(Math.random() * 10000)
-                if ((await Database.from('users').where('username', username).andWhere('tag', id)).length >= 1) {
-                    return await generateTag()
-                }
-                return id
-            }
-            let tag = await generateTag()
-
-
-            let { privateKey, publicKey } = crypto.generateKeyPairSync('rsa', {
-                modulusLength: 2048,
-                publicKeyEncoding: { type: 'spki', format: 'pem' },
-                privateKeyEncoding: { type: 'pkcs8', format: 'pem' }
-            })
-
-
-            /**
-             *  Creating user's payload and storing it into database
-             */
-
-            let payload = {
-                id: parseInt(String(Math.floor(Math.random() * Date.now())).slice(0, 10)),
-                username: username,
-                tag: tag,
-                email: email,
-                description: description,
-                password: password,
-                private_key: privateKey,
-                public_key: publicKey,
-            }
-
-            let user = await User.create(payload)
-
-            //Clearing session
-            session.clear()
-
-            /**
-             *  Login user, if :token? param is passed, we logged the user with a token. Otherwise, it is with basic sessions cookies.
-             */
-
-            if (request.qs().token !== undefined) {
-                let token = await auth.use('api').attempt(email, password, { name: 'For the CLI app', expiresIn: '30mins', meta: { privateKey }})
-                return response.created({ status: "created", data: { token }})
-            }
-
-            session.put('key', privateKey)
-            await auth.use('web').login(user)
-
-            return response.created({ status: "created" })
-        } catch (e) {
-            return response.internalServerError()
+            return id
         }
+        let tag = await generateTag()
+        
+        
+        let { privateKey, publicKey } = crypto.generateKeyPairSync('rsa', {
+            modulusLength: 2048,
+            publicKeyEncoding: { type: 'spki', format: 'pem' },
+            privateKeyEncoding: { type: 'pkcs8', format: 'pem' }
+        })
+        
+        
+        /**
+        *  Creating user's payload and storing it into database
+        */
+        
+        let payload = {
+            id: parseInt(String(Math.floor(Math.random() * Date.now())).slice(0, 10)),
+            username: username,
+            tag: tag,
+            email: email,
+            description: description,
+            password: password,
+            private_key: privateKey,
+            public_key: publicKey,
+        }
+        
+        let user = await User.create(payload)
+        
+        //Clearing session
+        session.clear()
+        
+        /**
+        *  Login user, if :token? param is passed, we logged the user with a token. Otherwise, it is with basic sessions cookies.
+        */
+        
+        if (request.qs().token !== undefined) {
+            let token = await auth.use('api').attempt(email, password, { name: 'For the CLI app', expiresIn: '30mins', meta: { privateKey }})
+            return response.created({ status: "Created", data: { token }})
+        }
+        
+        session.put('key', privateKey)
+        await auth.use('web').login(user)
+        
+        return response.created({ status: "Created" })
     }
-
-
-
+    
+    
+    
     /**
-     *  LOGIN 
-     * 
-     *  Login to your account on Ake. 
-     * 
-     *  @route POST  /login 
-     * 
-     */
-
+    *  LOGIN 
+    * 
+    *  Login to your account on Ake. 
+    * 
+    *  @route POST  /login 
+    * 
+    */
+    
     public async Login({ response, request, auth, session }: HttpContextContract): Promise<void> {
+        //Getting Data
+        let { email, password } = await request.validate(LoginUserValidator)
+        
+        //Login user
         try {
-            try {
-                await request.validate(LoginUserValidator)
-            } catch (e) {
-                let status = e.messages.errors[0].message.split(':')[0]
-                return response.status(parseInt(status)).json({ status: "badRequest", errors: e })
-            }
-            //Getting Data
-            let { email, password } = await request.validate(LoginUserValidator)
-
-            //Login user
-            try {
-                //Token authentication
-                if (request.qs().token !== undefined) {
-                    let priavte_key_encrypted: string = (await User.query().where('email', email))[0].private_key
-                    let privateKey: string = CryptoJS.enc.Utf8.stringify(CryptoJS.AES.decrypt(priavte_key_encrypted, password))
-
-                    let token = await auth.use('api').attempt(email, password, { name: 'For the CLI app', expiresIn: '30mins', meta: { privateKey }})
-
-                    return response.created({ status: 'created', data: { token } })
-                } 
-                
-                //Web authentication
-                else {
-                    await auth.use('web').attempt(email, password)
-                    session.put('key', CryptoJS.enc.Utf8.stringify(CryptoJS.AES.decrypt(auth.user!.private_key, password)))
-                    return response.created({ status: "created" })
-                }
-            } catch (e) {
-                //Returning bad credentials
-                console.log(e)
-                return response.unauthorized({ status: "unauthorized", errors: e })
-            }
-        } catch (e) {
-            return response.internalServerError({ status: "internalServerError", errors: e })
-        }
-    }
-
-
-    /**
-     *  LOGOUT 
-     * 
-     *  Logout of your account. 
-     *  You must be logged in before calling this route. 
-     * 
-     *  @route GET  /logout
-     * 
-     */
-
-    public async Logout({ request, response, auth }: HttpContextContract): Promise<void> {
-        try {
-
+            //Token authentication
             if (request.qs().token !== undefined) {
-                await auth.use('api').revoke()
-            } else {
-                await auth.use('web').logout()
-            }
+                let priavte_key_encrypted: string = (await User.query().where('email', email))[0].private_key
+                let privateKey: string = CryptoJS.enc.Utf8.stringify(CryptoJS.AES.decrypt(priavte_key_encrypted, password))
+                
+                let token = await auth.use('api').attempt(email, password, { name: 'For the CLI app', expiresIn: '30mins', meta: { privateKey }})
+                
+                return response.created({ status: 'Created', data: { token } })
+            } 
             
-
-            //Everything good
-            return response.created({ status: "ok" })
+            //Web authentication
+            else {
+                await auth.use('web').attempt(email, password)
+                session.put('key', CryptoJS.enc.Utf8.stringify(CryptoJS.AES.decrypt(auth.user!.private_key, password)))
+                return response.created({ status: "Created" })
+            }
         } catch (e) {
-            return response.internalServerError({ status: "internalServerError", errors: e })
+            //Returning bad credentials
+            console.log(e)
+            return response.unauthorized({ status: "Unauthorized", errors: e })
         }
     }
-
-
+    
+    
     /**
-     *  TOKEN 
-     * 
-     *  Generate an auth token for authenticating yourself with sockets. 
-     * 
-     *  @route GET  /token
-     * 
-     */
-
-    public async Token({ auth, response }: HttpContextContract): Promise<any> {
-        try {
-            //Get user_id
-            let user_id = auth.user!.id
-
-            //Generate Token
-            let opaqueToken = await socketAuth.loginToken(user_id, '10min')
-
-            return response.created({ status: "created", data: opaqueToken?.toJSON()})
-        } catch(e) {
-            return response.internalServerError({ errors: e })
+    *  LOGOUT 
+    * 
+    *  Logout of your account. 
+    *  You must be logged in before calling this route. 
+    * 
+    *  @route GET  /logout
+    * 
+    */
+    
+    public async Logout({ request, response, auth }: HttpContextContract): Promise<void> {
+        if (request.qs().token !== undefined) {
+            await auth.use('api').revoke()
+        } else {
+            await auth.use('web').logout()
         }
+        
+        //Everything good
+        return response.created({ status: "Ok" })
+    }
+    
+    
+    /**
+    *  TOKEN 
+    * 
+    *  Generate an auth token for authenticating yourself with sockets. 
+    * 
+    *  @route GET  /token
+    * 
+    */
+    
+    public async Token({ auth, response }: HttpContextContract): Promise<any> {
+        //Get user_id
+        let user_id = auth.user!.id
+        
+        //Generate Token
+        let opaqueToken = await socketAuth.loginToken(user_id, '10min')
+        
+        return response.created({ status: "Created", data: opaqueToken?.toJSON()})
     }
 }

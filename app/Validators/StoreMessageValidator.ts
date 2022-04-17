@@ -46,9 +46,9 @@ export default class StoreMessageValidator {
 	 *
 	 */
   public messages = {
-	  'required': 'The {{ field }} field is required',
-	  'number': 'The {{ field }} field should be a number',
-	  'string': 'The {{ field }} field should be a string',
-	  'exists': 'The {{ field }} field does not exists on our db',
+	  'required': '400:The {{ field }} field is required',
+	  'number': '400:The {{ field }} field should be a number',
+	  'string': '400:The {{ field }} field should be a string',
+	  'exists': '400:The {{ field }} field does not exists on our db',
   }
 }

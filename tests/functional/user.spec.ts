@@ -9,7 +9,7 @@ test.group('User', () => {
     let response = await client.get('/user/account').loginAs(user)
   
     response.assertStatus(200)
-    response.assertBodyContains({ data: {}, status: 'ok'})
+    response.assertBodyContains({ data: {}, status: 'Ok'})
   })
 
   test('Infomations about an other account', async ({ client }) => {
@@ -20,6 +20,6 @@ test.group('User', () => {
     let response = await client.get(url).loginAs(user)
 
     response.assertStatus(200) 
-    response.assertBodyContains({ data: {}, status: 'ok'})
+    response.assertBodyContains({ data: {}, status: 'Ok'})
   })  
 })

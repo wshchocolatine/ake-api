@@ -15,7 +15,7 @@ test.group('Auth', async () => {
     let response = await client.post('/register?token=true').form(payload)
 
     response.assertStatus(201)
-    response.assertBodyContains({ data: {}, status: 'created' })
+    response.assertBodyContains({ data: {}, status: 'Created' })
   }) 
 
   test('Login', async ({ client }) => {
@@ -27,7 +27,7 @@ test.group('Auth', async () => {
     let response = await client.post('/login?token=true').form(payload)
 
     response.assertStatus(201)
-    response.assertBodyContains({ data: {}, status: 'created' })
+    response.assertBodyContains({ data: {}, status: 'Created' })
   })
 
   test('Logout', async ({ client }) => {
@@ -44,7 +44,7 @@ test.group('Auth', async () => {
     let response = await client.get('/user/token').loginAs(user)
 
     response.assertStatus(201)
-    response.assertBodyContains({ status: 'created', data: {} })
+    response.assertBodyContains({ status: 'Created', data: {} })
   })
 
   await redis.flushall()
