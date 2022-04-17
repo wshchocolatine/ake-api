@@ -42,7 +42,7 @@ export default class ChangeUsernameValidator {
 	 *
 	 */
   public messages = {
-	'required': 'The {{ field }} field is required', 
-	'maxLength': 'The supplied {{ field }} field has too many characters to be valid'
+	'required': '400:The {{ field }} field is required', 
+	'maxLength': '400:The supplied {{ field }} field has too many characters to be valid'
   }
 }

@@ -29,7 +29,7 @@ test.group('Conversations', () => {
   //   response.assertStatus(200)
   //   response.assertBodyContains({
   //     data: {}, 
-  //     status: 'ok'
+  //     status: 'Ok'
   //   })
   // })
 
@@ -41,7 +41,7 @@ test.group('Conversations', () => {
   //   response.assertStatus(200)
   //   response.assertBodyContains({
   //     data: {}, 
-  //     status: 'ok'
+  //     status: 'Ok'
   //   })
   // })
 })

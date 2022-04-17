@@ -47,7 +47,7 @@ export default class ChangePasswordValidator {
 	 *
 	 */
   public messages = {
-	'required': 'The {{ field }} field is required',
-	'string': 'The {{ field }} field should be a string'
+	'required': '400:The {{ field }} field is required',
+	'string': '400:The {{ field }} field should be a string'
   }
 }

@@ -43,6 +43,6 @@ export default class StoreProfilePictureValidator {
 	 *
 	 */
   public messages = {
-	  'size': 'Picture is too heavy. Max size: 2mb/mo'
+	  'size': '400:Picture is too heavy. Max size: 2mb/mo'
   }
 }
