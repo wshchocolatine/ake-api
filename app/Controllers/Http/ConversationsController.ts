@@ -7,7 +7,7 @@ import Conversation from 'App/Models/Conversation';
 import User from 'App/Models/User'
 import Participant from 'App/Models/Participant';
 import Message from 'App/Models/Message'
-import StoreFirstMessageValidator from 'App/Validators/StoreConversationValidator'
+import StoreNewConversationValidator from 'App/Validators/StoreConversationValidator'
 import Redis from '@ioc:Adonis/Addons/Redis';
 
 
@@ -30,72 +30,114 @@ export default class ConversationsController {
         * Getting data and validating it
         */
         
-        let { receiver_username, receiver_tag, content } = await request.validate(StoreFirstMessageValidator)
-        
-        let receiver_id_array = await Database.from('users').where('username', receiver_username).andWhere('tag', receiver_tag).select('id')
-        
-        if (receiver_id_array.length === 0) {
-            return response.badRequest({ status: "Bad Request", errors: "This user doesn't exist" })
-        }
-        
-        let receiver_id = receiver_id_array[0].id
-        
-        
+        const { participantsWithoutCreator, content } = await request.validate(StoreNewConversationValidator)
+        const participantsWithoutCreatorObject = participantsWithoutCreator.map(element => {
+            const splitStringArray = element.split("#")
+            return { username: splitStringArray[0], tag: splitStringArray[1]}
+        })
+
+        const connectedUser = auth.user!
+
+
         /**
-        *  Checking if a conversations already exists between these users
-        */
-        
-        let conversation_exists = await Conversation.query()
-        .whereHas('participants', (subquery) => subquery.where('user_id', auth.user!.id))
-        .andWhereHas('participants', (subquery) => subquery.where('user_id', receiver_id))
-        
-        if (conversation_exists.length >= 1) {
-            return response.conflict({ status: "Conflict", errors: "There is already a conversation between these users ! "})
-        }
-        
-        
+         *  Creating id for conversation and message
+         */
+
+        const convId = parseInt(String(Math.floor(Math.random() * Date.now())).slice(0, 10))
+        const msgId = parseInt(String(Math.floor(Math.random() * Date.now())).slice(0, 10))
+
+
         /**
-        *  Ciphering the message with creating key and iv for aes-192-cbc
-        */
+         *  Ciphering the message with creating key and iv for aes-192-cbc
+         */
         
-        let key = crypto.randomBytes(24)
-        let iv = crypto.randomBytes(16)
+        const key = crypto.randomBytes(24)
+        const iv = crypto.randomBytes(16)
         
-        let cipher = crypto.createCipheriv('aes-192-ctr', key, iv)
+        const cipher = crypto.createCipheriv('aes-192-ctr', key, iv)
         let encrypted_msg = cipher.update(content, 'utf-8', 'hex')
         encrypted_msg += cipher.final('hex')
+
+
+        /**
+         *  We create an array for all participants of the conversation. 
+         */
+
+        const participantsPayloadPromise = participantsWithoutCreatorObject.map(async (element) => {
+            const participant = await Database.from('users').where('username', element.username).andWhere('tag', element.tag).select('id')
+
+            /**
+             *  We check if the participants are existing 
+             */
+            if (participant.length === 0) {
+                return response.badRequest({ status: "Bad Request", errors: `The user ${element.username}#${element.tag} doesn't exist`})
+            }
+            const participantId = participant[0].id
+
+            /**
+             *  If it's a 1:1 conversation, we check if that a conversations already exists (if so, we return an error)
+             */
+            if (participantsWithoutCreatorObject.length === 1) {
+                const conversation_exists = await Conversation.query()
+                    .whereHas('participants', (subquery) => subquery.where('user_id', auth.user!.id))
+                    .andWhereHas('participants', (subquery) => subquery.where('user_id', participantId))
+                
+                if (conversation_exists.length >= 1) {
+                    return response.conflict({ status: "Conflict", errors: "There is already a conversation between these users"})
+                }
+            }
+            
+            return { user_id: participantId, conversation_id: convId }
+        })
+        const participantsPayload = await Promise.all(participantsPayloadPromise)
+        participantsPayload.push({ user_id: connectedUser.id, conversation_id: convId })  //Pushing into the array the user who created the conversation
+        
+
+        /**
+         *  We create an array for keys of each participants. 
+         *  Keys are beeing ciphered by the public key of each participants so they are not the same in db. 
+         */
+        
+        const keysPayloadPromise = participantsWithoutCreatorObject.map(async(element) => {
+            const participant = await User.query().where('username', element.username).andWhere('tag', element.tag).select('public_key', 'id')
+            const participantPublicKey = participant[0].public_key
+            const participantId = participant[0].id
+
+            const keyEncrypted = crypto.publicEncrypt(Buffer.from(participantPublicKey), Buffer.from(key))
+
+            return {
+                conversation_id: convId, 
+                owner_id: participantId, 
+                key_encrypted: keyEncrypted.toString("base64"), 
+                iv: iv.toString("hex")
+            }
+        })
+        const keysPayload = await Promise.all(keysPayloadPromise)
+        const connectedUserEncryptedKey = crypto.publicEncrypt(Buffer.from(connectedUser.public_key), Buffer.from(key))
+        keysPayload.push({
+            conversation_id: convId, 
+            owner_id: connectedUser.id, 
+            key_encrypted: connectedUserEncryptedKey.toString("base64"), 
+            iv: iv.toString("hex")
+        }) // Pushing into the array the user who created the conversation
         
         
         /**
-        *  Ciphering the key of conversations with the keys of the participants. 
-        *  We will have to insert two rows in our db because participants will not have the same public key. So, we have to cipher for each of them.
+        *  Preparing conversation and message payloads. 
         */
         
-        let { public_key } = (await User.query().where('id', receiver_id).select('public_key'))[0] 
-        
-        let owner_encrypted_key = crypto.publicEncrypt(Buffer.from(auth.user!.public_key), Buffer.from(key)).toString('base64')
-        let receiver_encrypted_key = crypto.publicEncrypt(Buffer.from(public_key), Buffer.from(key)).toString('base64')
-        
-        
-        /**
-        *  Preparing conversation and message payloads. Ids are created for each conversation and message.
-        */
-        
-        let conv_id = parseInt(String(Math.floor(Math.random() * Date.now())).slice(0, 10))
-        let msg_id = parseInt(String(Math.floor(Math.random() * Date.now())).slice(0, 10))
-        
-        let conv_payload = {
-            id: conv_id,
+        const convPayload = {
+            id: convId,
             last_msg_content: encrypted_msg,
-            last_msg_author: auth.user!.id,
+            last_msg_author: connectedUser.id,
             last_msg_read: false,
-            last_msg_id: msg_id
+            last_msg_id: msgId
         }
         
-        let msg_payload = {
-            id: msg_id,
-            author: auth.user!.id,
-            conversation_id: conv_id,
+        const msgPayload = {
+            id: msgId,
+            author: connectedUser.id,
+            conversation_id: convId,
             content: encrypted_msg,
             read: false
         }
@@ -105,34 +147,13 @@ export default class ConversationsController {
         *  Inserting data into the database
         */
         
-        let trx = await Database.transaction()
+        const trx = await Database.transaction()
         try {
-            await Conversation.create(conv_payload, { client: trx })
-            await Participant.createMany([
-                {
-                    user_id: auth.user!.id, 
-                    conversation_id: conv_id
-                }, 
-                {
-                    user_id: receiver_id,
-                    conversation_id: conv_id
-                }
-            ], { client: trx })
-            await Message.create(msg_payload, { client: trx })
-            await Key.createMany([
-                {
-                    conversation_id: conv_id,
-                    owner_id: auth.user!.id,
-                    key_encrypted: owner_encrypted_key,
-                    iv: iv.toString("hex")
-                },
-                {
-                    conversation_id: conv_id,
-                    owner_id: receiver_id,
-                    key_encrypted: receiver_encrypted_key,
-                    iv: iv.toString("hex")
-                }
-            ], { client: trx })
+            await Conversation.create(convPayload, { client: trx })
+            await Message.create(msgPayload, { client: trx })
+            await Key.createMany(keysPayload, { client: trx })
+            //@ts-ignore
+            await Participant.createMany(participantsPayload, { client: trx })
             await trx.commit()
         } catch(e) {
             await trx.rollback()
@@ -160,8 +181,8 @@ export default class ConversationsController {
         *  Getting data from the request and get private key
         */
         
-        let user_id = auth.user!.id
-        let { offset } = request.qs()
+        const userId = auth.user!.id
+        const { offset } = request.qs()
         
         
         /**
@@ -169,20 +190,20 @@ export default class ConversationsController {
         */
         
         let private_key: string
-        let authorization_header = request.header('authorization')
+        const authorization_header = request.header('authorization')
         
         if ( authorization_header !== undefined) {
-            let parts = authorization_header.split(' ')
-            let tokenParts = parts[1].split('.')
+            const parts = authorization_header.split(' ')
+            const tokenParts = parts[1].split('.')
             
-            let tokenId = base64.urlDecode(tokenParts[0])
-            let token = await Redis.get(`api:${tokenId}`)
+            const tokenId = base64.urlDecode(tokenParts[0])
+            const token = await Redis.get(`api:${tokenId}`)
             
             if (!token) {
                 return 
             }
             
-            let tokenObject = JSON.parse(token)
+            const tokenObject = JSON.parse(token)
             private_key = tokenObject.meta.privateKey
         } else {
             private_key = session.get('key')
@@ -193,9 +214,9 @@ export default class ConversationsController {
         *  Getting conversations and keys data from the db
         */
         
-        let user_conversations = await Conversation.query()
-            .preload('participants', (subquery) => subquery.select('user_id').whereNot('user_id', user_id))
-            .whereHas('participants', (subquery) => subquery.where('user_id', user_id))
+        const userConversations = await Conversation.query()
+            .preload('participants', (subquery) => subquery.select('user_id').whereNot('user_id', userId))
+            .whereHas('participants', (subquery) => subquery.where('user_id', userId))
             .orderBy('updated_at', 'desc')
             .offset(offset)
             .limit(12)
@@ -205,29 +226,37 @@ export default class ConversationsController {
         *  Deciphering conversations, serializing them, and adding the username of the receiver 
         */
         
-        let user_conversations_serialized = user_conversations.map(element => element.serialize())
+        const userConversationsSerialized = userConversations.map(element => element.serialize())
         
-        let user_conversations_map = user_conversations_serialized.map(async (element) => {
-            let conv_id = element.id 
+        const userConversationsMap = userConversationsSerialized.map(async (element) => {
+            const convId = element.id  
             
             //Decrypt key_AES and get iv
-            let { key_encrypted, iv } = (await Key.query().where('conversation_id', conv_id).andWhere('owner_id', user_id).select('key_encrypted', 'iv'))[0]
-            let key_AES = crypto.privateDecrypt(Buffer.from(private_key), Buffer.from(key_encrypted, 'base64'))
+            const { key_encrypted, iv } = (await Key.query().where('conversation_id', convId).andWhere('owner_id', userId).select('key_encrypted', 'iv'))[0]
+            const keyAES = crypto.privateDecrypt(Buffer.from(private_key), Buffer.from(key_encrypted, 'base64'))
             
             //Decrypt message
-            let decipher = crypto.createDecipheriv('aes-192-ctr', key_AES, Buffer.from(iv, 'hex'))
-            let decrypted_msg = decipher.update(element.last_msg_content, 'hex', 'utf-8')
-            decrypted_msg += decipher.final('utf-8')
-            element.last_msg_content = decrypted_msg
+            const decipher = crypto.createDecipheriv('aes-192-ctr', keyAES, Buffer.from(iv, 'hex'))
+            let decryptedMsg = decipher.update(element.last_msg_content, 'hex', 'utf-8')
+            decryptedMsg += decipher.final('utf-8')
+            element.last_msg_content = decryptedMsg
             
-            //Adding receiver username 
-            let { username } = (await User.query().where('id', element.participants[0].user_id).select('username'))[0]
-            // delete element.participants
-            element.receiver_username = username
+            //Adding participant's username to participants key
+            const participantsConversation = element.participants.map(async(elementBis) => {
+                const participantId = elementBis.user_id
+                const { username } = (await User.query().where('id', participantId).select('username'))[0]
+                
+                return {
+                    user_id: participantId, 
+                    username: username
+                }
+            })
+            element.participants = await Promise.all(participantsConversation)
+
             return element
         })
         
-        let data = await Promise.all(user_conversations_map)
+        const data = await Promise.all(userConversationsMap)
         
         
         //Everything 😀
@@ -250,8 +279,8 @@ export default class ConversationsController {
         *  Get data from request 
         */
         
-        let { query, offset } = request.qs()
-        let user_id = auth.user!.id
+        const { query, offset } = request.qs()
+        const user_id = auth.user!.id
         
         if (typeof offset !== "number") {
             return response.badRequest({ status: "Bad Request" })
@@ -262,20 +291,20 @@ export default class ConversationsController {
         */
         
         let private_key: string
-        let authorization_header = request.header('authorization')
+        const authorization_header = request.header('authorization')
         
         if ( authorization_header !== undefined) {
-            let parts = authorization_header.split(' ')
-            let tokenParts = parts[1].split('.')
+            const parts = authorization_header.split(' ')
+            const tokenParts = parts[1].split('.')
             
-            let tokenId = base64.urlDecode(tokenParts[0])
-            let token = await Redis.get(`api:${tokenId}`)
+            const tokenId = base64.urlDecode(tokenParts[0])
+            const token = await Redis.get(`api:${tokenId}`)
             
             if (!token) {
                 return 
             }
             
-            let tokenObject = JSON.parse(token)
+            const tokenObject = JSON.parse(token)
             private_key = tokenObject.meta.privateKey
         } else {
             private_key = session.get('key')
@@ -286,7 +315,7 @@ export default class ConversationsController {
         *  Get conversation id from database
         */
         
-        let user_conversations_id = await Conversation.query()
+        const user_conversations_id = await Conversation.query()
         .whereHas('participants', (subQuery) => {
             subQuery.where('user_id', user_id)
         })
@@ -296,38 +325,38 @@ export default class ConversationsController {
         *  Retrieving conversations filtered by the query parameter and deciphering it
         */
         
-        let data = user_conversations_id.map(async(element) => {
+        const data = user_conversations_id.map(async(element) => {
             
             /**
             *  Retrieving conversations filtered by the query parameter and serializing it 
             */
             
-            let dataEncrypted = await Participant.query()
-            .where('conversation_id', element.id)
-            .andWhereNot('user_id', user_id)
-            .whereHas('users', (subQuery) => subQuery.where('username', 'like', `${query}%`))
-            .preload('conversations', query => query.orderBy('updated_at', 'desc'))
-            .offset(offset)
-            .select('conversation_id', 'user_id')
-            .limit(12)
+            const dataEncrypted = await Participant.query()
+                .where('conversation_id', element.id)
+                .andWhereNot('user_id', user_id)
+                .whereHas('users', (subQuery) => subQuery.where('username', 'like', `${query}%`))
+                .preload('conversations', query => query.orderBy('updated_at', 'desc'))
+                .offset(offset)
+                .select('conversation_id', 'user_id')
+                .limit(12)
             
-            let dataSerialized = dataEncrypted.map((conv) => conv.serialize())            
+            const dataSerialized = dataEncrypted.map((conv) => conv.serialize())            
             
             /**
             *  Deciphering the conversations and adding the redceiver's username to the data 
             */
             
-            let data_map = dataSerialized.map(async (element) => {
-                let conv_id = element.conversation.id 
+            const data_map = dataSerialized.map(async (element) => {
+                const conv_id = element.conversation.id 
                 
                 /**
                 *  Deciphering key and last message sent 
                 */
                 
-                let { key_encrypted, iv } = (await Key.query().where('conversation_id', conv_id).andWhere('owner_id', user_id).select('key_encrypted', 'iv'))[0]
-                let key_AES = crypto.privateDecrypt(Buffer.from(private_key), Buffer.from(key_encrypted, 'base64'))
+                const { key_encrypted, iv } = (await Key.query().where('conversation_id', conv_id).andWhere('owner_id', user_id).select('key_encrypted', 'iv'))[0]
+                const key_AES = crypto.privateDecrypt(Buffer.from(private_key), Buffer.from(key_encrypted, 'base64'))
                 
-                let decipher = crypto.createDecipheriv('aes-192-ctr', key_AES, Buffer.from(iv, 'hex'))
+                const decipher = crypto.createDecipheriv('aes-192-ctr', key_AES, Buffer.from(iv, 'hex'))
                 let decrypted_msg = decipher.update(element.conversation.last_msg_content, 'hex', 'utf-8')
                 decrypted_msg += decipher.final('utf-8')
                 element.conversation.last_msg_content = decrypted_msg
@@ -336,8 +365,8 @@ export default class ConversationsController {
                 *  Adding receiver's username to data 
                 */
                 
-                let receiver_id = element.user_id
-                let { username } = (await User.query().where('id', receiver_id).select('username'))[0]
+                const receiver_id = element.user_id
+                const { username } = (await User.query().where('id', receiver_id).select('username'))[0]
                 element.receiver_username = username
                 element.receiver_id = element.user_id
                 delete element.user_id
@@ -346,13 +375,13 @@ export default class ConversationsController {
                 return element
             })
             
-            let conversations = await Promise.all(data_map)
+            const conversations = await Promise.all(data_map)
             
             return conversations
         })
         
         //Promises...
-        let payload = await Promise.all(data)
+        const payload = await Promise.all(data)
         
         //Returning response
         return response.status(200).json({ data: payload, status: "Ok" })

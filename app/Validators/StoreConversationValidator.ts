@@ -1,7 +1,7 @@
 import { schema, rules } from '@ioc:Adonis/Core/Validator'
 import { HttpContextContract } from '@ioc:Adonis/Core/HttpContext'
 
-export default class StoreFirstMessageValidator {
+export default class StoreNewConversationValidator {
   constructor (protected ctx: HttpContextContract) {
   }
 
@@ -25,12 +25,7 @@ export default class StoreFirstMessageValidator {
 	 *    ```
 	 */
   public schema = schema.create({
-    receiver_username: schema.string({}, [
-		rules.required()
-	]),
-	receiver_tag: schema.number([
-		rules.required()
-	]),
+	participantsWithoutCreator: schema.array().members(schema.string()),
 	content: schema.string({},[
 		rules.required()
 	])

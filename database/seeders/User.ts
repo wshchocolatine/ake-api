@@ -18,6 +18,6 @@ export default class UserSeeder extends BaseSeeder {
             email: 'ake@ake-app.com'
           }
         ])
-        .createMany(2)
+        .createMany(3)
   }
 }
