@@ -27,13 +27,12 @@ export default class LoginUserValidator {
   public schema = schema.create({
 	  email: schema.string([
 		  rules.trim(),
-		  rules.email({
-			  sanitize: {
-				  lowerCase: true
-			  }
+		  rules.email(), 
+		  rules.normalizeEmail({
+			  allLowercase: true
 		  })
 	  ]),
-	  password: schema.string({ trim: true })
+	  password: schema.string([rules.trim()])
   })
 
 	/**

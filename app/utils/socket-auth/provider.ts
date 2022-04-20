@@ -16,7 +16,7 @@ export class TokenProvider {
             if(!token) {
                 return null
             }
-            let tokenObject = JSON.parse(token)
+            const tokenObject = JSON.parse(token)
             return tokenObject
         } catch(e) {
             return null
@@ -24,11 +24,11 @@ export class TokenProvider {
     }
 
     public async writeToken(token: ProviderToken): Promise<string> {
-        let tokenId = cuid()
-        let payload = {
+        const tokenId = cuid()
+        const payload = {
             tokenHash: token.tokenHash
         }
-        let ttl = Math.ceil(token.expiresAt.diffNow('seconds').seconds)
+        const ttl = Math.ceil(token.expiresAt.diffNow('seconds').seconds)
 
         await Redis.setex(
             "sockets:" + tokenId + token.userId.toString(),
@@ -40,7 +40,7 @@ export class TokenProvider {
     }
 
     public async readToken(userId: number, tokenId: string, tokenCheckHash: string): Promise<any> {
-        let tokenObject = this.parseToken(await Redis.get("sockets:" + tokenId + userId.toString()))
+        const tokenObject = this.parseToken(await Redis.get("sockets:" + tokenId + userId.toString()))
         if(!tokenObject) {
             return null
         }
@@ -70,7 +70,7 @@ export class UserProvider {
             if(!user) {
                 return null
             }
-            let userObject = JSON.parse(user)
+            const userObject = JSON.parse(user)
             return userObject
         } catch(e) {
             return null
@@ -78,8 +78,8 @@ export class UserProvider {
     }
 
     public async writeUser(user: ProviderUser) {
-        let { username, userId, socketId } = user
-        let payload = {
+        const { username, userId, socketId } = user
+        const payload = {
             username, 
             socketId
         }
@@ -93,7 +93,7 @@ export class UserProvider {
     }
 
     public async readUser(userId: number): Promise<PersistedUser | null> {
-        let userObject = this.parseUser(await Redis.get(userId.toString()))
+        const userObject = this.parseUser(await Redis.get(userId.toString()))
         if(!userObject) {
             return null
         }

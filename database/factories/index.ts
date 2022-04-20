@@ -10,7 +10,7 @@ import User from 'App/Models/User'
 
 export const UserFactory = Factory 
     .define(User, ({ faker }) => {
-        let { privateKey, publicKey } = crypto.generateKeyPairSync('rsa', {
+        const { privateKey, publicKey } = crypto.generateKeyPairSync('rsa', {
             modulusLength: 2048,
             publicKeyEncoding: { type: 'spki', format: 'pem' },
             privateKeyEncoding: { type: 'pkcs8', format: 'pem' }

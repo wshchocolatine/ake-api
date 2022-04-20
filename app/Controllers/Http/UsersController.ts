@@ -9,7 +9,7 @@ import ChangeUsernameValidator from 'App/Validators/ChangeUsernameValidator'
 export default class UsersController {
     public async Account({ response, auth }: HttpContextContract): Promise<void> {
         //Getting data about the user from the auth
-        let data = {
+        const data = {
             username: auth.user!.username,
             tag: auth.user!.tag,
             email: auth.user!.email,
@@ -22,13 +22,13 @@ export default class UsersController {
     
     public async Other_Account({ request, response }: HttpContextContract): Promise<void> {
         //Get data abt the request
-        let { user_id } = request.qs()
+        const { user_id } = request.qs()
         
         //Get data from db 
-        let user = await User.findOrFail(user_id)
+        const user = await User.findOrFail(user_id)
         
         //Send data
-        let payload = {
+        const payload = {
             user_id: user.id,
             username: user.username,
             tag: user.tag,
@@ -39,11 +39,11 @@ export default class UsersController {
     
     public async Change_Description({ request, response, auth }: HttpContextContract): Promise<void> {
         //Getting data
-        let { description } = await request.validate(ChangeDescriptionValidator)
-        let user_id = auth.user!.id
+        const { description } = await request.validate(ChangeDescriptionValidator)
+        const user_id = auth.user!.id
         
         //Querying db 
-        let user = await User.findOrFail(user_id)
+        const user = await User.findOrFail(user_id)
         user.description = description
         await user.save()
         
@@ -52,11 +52,11 @@ export default class UsersController {
     
     public async Change_Username({ request, response, auth }: HttpContextContract): Promise<void> {
         //Getting data
-        let user_id = auth.user!.id
-        let { username } = await request.validate(ChangeUsernameValidator)
+        const user_id = auth.user!.id
+        const { username } = await request.validate(ChangeUsernameValidator)
         
         //Saving changements to db
-        let user = await User.findOrFail(user_id)
+        const user = await User.findOrFail(user_id)
         user.username = username
         await user.save()
         
@@ -64,8 +64,8 @@ export default class UsersController {
     }
     
     public async Store_Profile_Picture({ request, response, auth }: HttpContextContract): Promise<void> {
-        let { picture } = await request.validate(StoreProfilePictureValidator)
-        let user_id = auth.user!.id
+        const { picture } = await request.validate(StoreProfilePictureValidator)
+        const user_id = auth.user!.id
         
         await picture.move(Application.tmpPath('uploads'), {
             name: `${user_id}.profilepicture`,
@@ -76,7 +76,7 @@ export default class UsersController {
     }
     
     public async Get_Profile_Picture({ response, auth }: HttpContextContract): Promise<any> {
-        let user_id = auth.user!.id
+        const user_id = auth.user!.id
         return response.attachment(
             Application.tmpPath('uploads', `${user_id}.profilepicture`)
             )

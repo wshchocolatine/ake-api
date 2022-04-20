@@ -28,8 +28,9 @@ export default class StoreUserValidator {
 	  username: schema.string([rules.trim(), rules.required()]),
 	  email: schema.string([
 		  rules.trim(),
+		  rules.email(),
 		  rules.normalizeEmail({
-			  allLowercase: true
+			  allLowercase: true, 
 		  }),
 		  rules.unique({
 			table: 'users',

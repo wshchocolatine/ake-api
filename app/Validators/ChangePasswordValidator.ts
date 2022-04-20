@@ -25,11 +25,12 @@ export default class ChangePasswordValidator {
 	 *    ```
 	 */
   public schema = schema.create({
-	  seed_phrase: schema.string({ trim: false }, [
+	  seed_phrase: schema.string([
 		  rules.required()
 	  ]), 
 	  email: schema.string.optional(), 
-	  new_password: schema.string({ trim: true }, [
+	  new_password: schema.string([
+		  rules.trim(), 
 		  rules.required(), 
 		  rules.regex(new RegExp('(?=^.{8,}$)(?=.*[0-9])(?=.*[A-Z])(?=.*[a-z])(?=.*[!@#$%^&*]+).*$'))
 	  ])

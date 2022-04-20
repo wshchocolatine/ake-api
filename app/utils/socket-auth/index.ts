@@ -18,7 +18,7 @@ class SocketAuth {
     }
 
     private generateToken(expiresIn: string) {
-        let token = string.generateRandom(60)
+        const token = string.generateRandom(60)
 
         return {
             token, 
@@ -32,7 +32,7 @@ class SocketAuth {
             return
         }
 
-        let milliseconds = string.toMs(expiresIn)
+        const milliseconds = string.toMs(expiresIn)
         return DateTime.local().plus({ milliseconds }) 
     }
 
@@ -44,17 +44,17 @@ class SocketAuth {
      **/
 
     public async loginToken(userId: number, expiresIn: string) {
-        let { token, tokenHash, expiresAt } = this.generateToken(expiresIn)
+        const { token, tokenHash, expiresAt } = this.generateToken(expiresIn)
         if (!expiresAt) {
             return null
         }
-        let providerToken = new ProviderToken(tokenHash, userId)
+        const providerToken = new ProviderToken(tokenHash, userId)
         providerToken.expiresAt = expiresAt
         providerToken.tokenHash = tokenHash
 
-        let tokenId = await this.providerToken.writeToken(providerToken)
+        const tokenId = await this.providerToken.writeToken(providerToken)
 
-        let opaqueToken = new OpaqueToken(token, tokenId, userId)
+        const opaqueToken = new OpaqueToken(token, tokenId, userId)
         opaqueToken.expiresAt = expiresAt
         
         return opaqueToken
@@ -66,12 +66,12 @@ class SocketAuth {
                 return null
             }
     
-            let parts = token.split(':')
+            const parts = token.split(':')
     
-            let tokenId = base64.urlDecode(parts[0])
-            let value = parts[1]
+            const tokenId = base64.urlDecode(parts[0])
+            const value = parts[1]
     
-            let response = await this.providerToken.readToken(userId, tokenId, this.generateHash(value))
+            const response = await this.providerToken.readToken(userId, tokenId, this.generateHash(value))
             if(!response) {
                 return null
             } 
@@ -92,8 +92,8 @@ class SocketAuth {
      */
 
     public async loginUser(socketId: string, userId: number, username: string) {
-        let user = new ProviderUser(socketId, userId, username)
-        let response = await this.userProvider.writeUser(user)
+        const user = new ProviderUser(socketId, userId, username)
+        const response = await this.userProvider.writeUser(user)
         if(response !== true) {
             return null
         }
@@ -101,7 +101,7 @@ class SocketAuth {
     }
 
     public async readUser(userId: number) {
-        let persistedUser = await this.userProvider.readUser(userId)
+        const persistedUser = await this.userProvider.readUser(userId)
         if(!persistedUser) {
             return null
         }

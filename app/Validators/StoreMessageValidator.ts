@@ -29,7 +29,7 @@ export default class StoreMessageValidator {
 		  rules.required(),
 		  rules.exists({table: 'conversations', column: 'id'})
 	  ]),
-	  content: schema.string({ trim: true }, [
+	  content: schema.string([
 		  rules.required()
 	  ])
   })

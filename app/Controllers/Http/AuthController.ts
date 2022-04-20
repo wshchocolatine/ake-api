@@ -2,7 +2,7 @@ import { HttpContextContract } from '@ioc:Adonis/Core/HttpContext'
 import Database from '@ioc:Adonis/Lucid/Database'
 import crypto from "crypto"
 import CryptoJS from "crypto-js"
-// let CryptoJS = require('crypto-js')
+// const CryptoJS = require('crypto-js')
 import User from 'App/Models/User'
 import LoginUserValidator from 'App/Validators/LoginUserValidator'
 import StoreUserValidator from 'App/Validators/StoreUserValidator'
@@ -28,7 +28,7 @@ export default class AuthController {
         *  Validating and getting data
         */
         
-        let { username, email, password, description } = await request.validate(StoreUserValidator)
+        const { username, email, password, description } = await request.validate(StoreUserValidator)
         
         
         /**
@@ -36,16 +36,16 @@ export default class AuthController {
         */
         
         async function generateTag(): Promise<number> {
-            let id = Math.floor(Math.random() * 10000)
+            const id = Math.floor(Math.random() * 10000)
             if ((await Database.from('users').where('username', username).andWhere('tag', id)).length >= 1) {
                 return await generateTag()
             }
             return id
         }
-        let tag = await generateTag()
+        const tag = await generateTag()
         
         
-        let { privateKey, publicKey } = crypto.generateKeyPairSync('rsa', {
+        const { privateKey, publicKey } = crypto.generateKeyPairSync('rsa', {
             modulusLength: 2048,
             publicKeyEncoding: { type: 'spki', format: 'pem' },
             privateKeyEncoding: { type: 'pkcs8', format: 'pem' }
@@ -56,7 +56,7 @@ export default class AuthController {
         *  Creating user's payload and storing it into database
         */
         
-        let payload = {
+        const payload = {
             id: parseInt(String(Math.floor(Math.random() * Date.now())).slice(0, 10)),
             username: username,
             tag: tag,
@@ -67,7 +67,7 @@ export default class AuthController {
             public_key: publicKey,
         }
         
-        let user = await User.create(payload)
+        const user = await User.create(payload)
         
         //Clearing session
         session.clear()
@@ -77,7 +77,7 @@ export default class AuthController {
         */
         
         if (request.qs().token !== undefined) {
-            let token = await auth.use('api').attempt(email, password, { name: 'For the CLI app', expiresIn: '30mins', meta: { privateKey }})
+            const token = await auth.use('api').attempt(email, password, { name: 'For the CLI app', expiresIn: '30mins', meta: { privateKey }})
             return response.created({ status: "Created", data: { token }})
         }
         
@@ -100,16 +100,16 @@ export default class AuthController {
     
     public async Login({ response, request, auth, session }: HttpContextContract): Promise<void> {
         //Getting Data
-        let { email, password } = await request.validate(LoginUserValidator)
+        const { email, password } = await request.validate(LoginUserValidator)
         
         //Login user
         try {
             //Token authentication
             if (request.qs().token !== undefined) {
-                let priavte_key_encrypted: string = (await User.query().where('email', email))[0].private_key
-                let privateKey: string = CryptoJS.enc.Utf8.stringify(CryptoJS.AES.decrypt(priavte_key_encrypted, password))
+                const priavte_key_encrypted: string = (await User.query().where('email', email))[0].private_key
+                const privateKey: string = CryptoJS.enc.Utf8.stringify(CryptoJS.AES.decrypt(priavte_key_encrypted, password))
                 
-                let token = await auth.use('api').attempt(email, password, { name: 'For the CLI app', expiresIn: '30mins', meta: { privateKey }})
+                const token = await auth.use('api').attempt(email, password, { name: 'For the CLI app', expiresIn: '30mins', meta: { privateKey }})
                 
                 return response.created({ status: 'Created', data: { token } })
             } 
@@ -161,10 +161,10 @@ export default class AuthController {
     
     public async Token({ auth, response }: HttpContextContract): Promise<any> {
         //Get user_id
-        let user_id = auth.user!.id
+        const user_id = auth.user!.id
         
         //Generate Token
-        let opaqueToken = await socketAuth.loginToken(user_id, '10min')
+        const opaqueToken = await socketAuth.loginToken(user_id, '10min')
         
         return response.created({ status: "Created", data: opaqueToken?.toJSON()})
     }

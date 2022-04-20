@@ -26,7 +26,7 @@ export default class StoreNewConversationValidator {
 	 */
   public schema = schema.create({
 	participantsWithoutCreator: schema.array().members(schema.string()),
-	content: schema.string({},[
+	content: schema.string([
 		rules.required()
 	])
   })

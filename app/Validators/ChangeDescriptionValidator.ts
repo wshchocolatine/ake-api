@@ -25,7 +25,8 @@ export default class ChangeDescriptionValidator {
 	 *    ```
 	 */
   public schema = schema.create({
-	  description: schema.string({ trim: true }, [
+	  description: schema.string([
+		  rules.trim(),
 		  rules.maxLength(255)
 	  ])
   })

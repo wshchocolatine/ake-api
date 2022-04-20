@@ -25,7 +25,8 @@ export default class ChangeUsernameValidator {
 	 *    ```
 	 */
   public schema = schema.create({
-	  username: schema.string({ trim: true }, [
+	  username: schema.string([
+		  rules.trim(),
 		  rules.maxLength(25)
 	  ])
   })

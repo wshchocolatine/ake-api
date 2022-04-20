@@ -31,5 +31,12 @@ export default class ExceptionHandler extends HttpExceptionHandler {
         errors: error.messages.errors[0]
       })
     }
+
+    if (error.code === 'E_INVALID_AUTH_PASSWORD' || error.code === 'E_INVALID_AUTH_UID') {
+      return ctx.response.status(401).json({
+        status: "Unauthorized", 
+        errors: 'Bad credentials'
+      })
+    }
   }
 }
