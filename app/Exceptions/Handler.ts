@@ -24,11 +24,18 @@ export default class ExceptionHandler extends HttpExceptionHandler {
   }
 
   public async handle(error: any, ctx: HttpContextContract) {
+    console.log(error.code)
     if (error.code === 'E_VALIDATION_FAILURE') {
       const statusNumber: number = error.messages.errors[0].message.split(':')[0]
       return ctx.response.status(statusNumber).json({
         status: status[statusNumber], 
         errors: error.messages.errors[0]
+      })
+    }
+
+    if (error.code === 'E_UNAUTHORIZED_ACCESS') {
+      return ctx.response.status(401).json({
+        status: "Unauthorized"
       })
     }
   }
