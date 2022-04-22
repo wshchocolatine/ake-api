@@ -1,47 +1,62 @@
 import { test } from '@japa/runner'
+import CryptoJS from "crypto-js"
 import User from 'App/Models/User'
 
-test.group('Conversations', () => {
-  test('New', async({ client }) => {
-    let user = await User.findByOrFail('email', 'marin@ake-app.com')
-    let userBis = await User.findByOrFail('email', 'louis@ake-app.com')
 
-    let payload = {
-      receiver_username: userBis.username, 
-      receiver_tag: userBis.tag, 
+/**
+ * Testing everything about conversations routes
+ * Marin and Louis and Ake user and their conversataion have been created in seeds (/database/seeders/UserAndConversation.ts)
+ */
+
+
+test.group('Conversations', () => {
+
+
+  test('New Conversation', async({ client }) => {
+    const akeUser = await User.findByOrFail('email', 'ake@ake-app.com')
+    const louisUser = await User.findByOrFail('email', 'louis@ake-app.com')
+
+    const payload = {
+      receiver_username: louisUser.username, 
+      receiver_tag: louisUser.tag, 
       content: 'Hey, first message :))'
     }
 
-    let response = await client.post('/conversations/new').form(payload).loginAs(user)
+    const response = await client.post('/conversations/new').form(payload).loginAs(akeUser)
 
     response.assertStatus(201)
   })
 
-  /**
-   *  These routes cannot be tested because we need private key
-   */
 
-  // test('Get', async({ client }) => {
-  //   let user = await User.findByOrFail('email', 'marin@ake-app.com')
+  test('Get Conversation', async({ client }) => {
+      const marinUser = await User.findByOrFail('email', 'marin@ake-app.com')
 
-  //   let response = await client.get('/conversations/get?offset=0').loginAs(user)
+      const privateKeyEncrypted = (await User.findByOrFail('email', 'marin@ake-app.com')).private_key
+      const password = 'secret'
+      const privateKey  = CryptoJS.enc.Utf8.stringify(CryptoJS.AES.decrypt(privateKeyEncrypted, password))
+  
+      const response = await client.get('/conversations/get?offset=0').session({ key: privateKey }).loginAs(marinUser)
+  
+      response.assertStatus(200)
+      response.assertBodyContains({
+        data: [], 
+        status: 'Ok'
+      })
+  })
 
-  //   response.assertStatus(200)
-  //   response.assertBodyContains({
-  //     data: {}, 
-  //     status: 'Ok'
-  //   })
-  // })
+  test('Search Conversation', async({ client }) => {
+    const marinUser = await User.findByOrFail('email', 'marin@ake-app.com')
 
-  // test('Search', async({ client }) => {
-  //   let user = await User.findByOrFail('email', 'marin@ake-app.com')
+    const privateKeyEncrypted = (await User.findByOrFail('email', 'marin@ake-app.com')).private_key
+    const password = 'secret'
+    const privateKey  = CryptoJS.enc.Utf8.stringify(CryptoJS.AES.decrypt(privateKeyEncrypted, password))
 
-  //   let response = await client.get('/conversations/search?query=louis').loginAs(user)
+    const response = await client.get('/conversations/search?query=louis&offset=0').session({ key: privateKey }).loginAs(marinUser)
 
-  //   response.assertStatus(200)
-  //   response.assertBodyContains({
-  //     data: {}, 
-  //     status: 'Ok'
-  //   })
-  // })
+    response.assertStatus(200)
+    response.assertBodyContains({
+      data: [], 
+      status: 'Ok'
+    })
+  })
 })

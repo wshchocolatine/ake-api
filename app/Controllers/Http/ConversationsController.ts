@@ -251,12 +251,8 @@ export default class ConversationsController {
         */
         
         let { query, offset } = request.qs()
+        const offsetInt = parseInt(offset)
         let user_id = auth.user!.id
-        
-        if (typeof offset !== "number") {
-            return response.badRequest({ status: "Bad Request" })
-        }
-        
         /**
         *  Getting private key, if session auth : it is in sessions cookies, if token auth : it is in the meta of the token
         */
@@ -307,7 +303,7 @@ export default class ConversationsController {
             .andWhereNot('user_id', user_id)
             .whereHas('users', (subQuery) => subQuery.where('username', 'like', `${query}%`))
             .preload('conversations', query => query.orderBy('updated_at', 'desc'))
-            .offset(offset)
+            .offset(offsetInt)
             .select('conversation_id', 'user_id')
             .limit(12)
             
