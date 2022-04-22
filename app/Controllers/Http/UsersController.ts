@@ -22,10 +22,10 @@ export default class UsersController {
     
     public async Other_Account({ request, response }: HttpContextContract): Promise<void> {
         //Get data abt the request
-        const { user_id } = request.qs()
+        const { userId } = request.qs()
         
         //Get data from db 
-        const user = await User.findOrFail(user_id)
+        const user = await User.findOrFail(userId)
         
         //Send data
         const payload = {
@@ -40,10 +40,10 @@ export default class UsersController {
     public async Change_Description({ request, response, auth }: HttpContextContract): Promise<void> {
         //Getting data
         const { description } = await request.validate(ChangeDescriptionValidator)
-        const user_id = auth.user!.id
+        const userId = auth.user!.id
         
         //Querying db 
-        const user = await User.findOrFail(user_id)
+        const user = await User.findOrFail(userId)
         user.description = description
         await user.save()
         
@@ -52,11 +52,11 @@ export default class UsersController {
     
     public async Change_Username({ request, response, auth }: HttpContextContract): Promise<void> {
         //Getting data
-        const user_id = auth.user!.id
+        const userId = auth.user!.id
         const { username } = await request.validate(ChangeUsernameValidator)
         
         //Saving changements to db
-        const user = await User.findOrFail(user_id)
+        const user = await User.findOrFail(userId)
         user.username = username
         await user.save()
         
@@ -65,10 +65,10 @@ export default class UsersController {
     
     public async Store_Profile_Picture({ request, response, auth }: HttpContextContract): Promise<void> {
         const { picture } = await request.validate(StoreProfilePictureValidator)
-        const user_id = auth.user!.id
+        const userId = auth.user!.id
         
         await picture.move(Application.tmpPath('uploads'), {
-            name: `${user_id}.profilepicture`,
+            name: `${userId}.profilepicture`,
             overwrite: true
         })
         
@@ -76,9 +76,9 @@ export default class UsersController {
     }
     
     public async Get_Profile_Picture({ response, auth }: HttpContextContract): Promise<any> {
-        const user_id = auth.user!.id
+        const userId = auth.user!.id
         return response.attachment(
-            Application.tmpPath('uploads', `${user_id}.profilepicture`)
+            Application.tmpPath('uploads', `${userId}.profilepicture`)
             )
         }
     }

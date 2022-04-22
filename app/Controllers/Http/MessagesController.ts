@@ -122,18 +122,18 @@ export default class MessagesController {
         /**
         *  Getting data from request
         */
-        const { conv_id, offset } = request.qs()
-        const user_id = auth.user!.id
+        const { convId, offset } = request.qs()
+        const userId = auth.user!.id
         
         /**
         * 	Getting private key, if session auth : it is in sessions cookies, if token auth : it is in the meta of the token
         */
         
-        let private_key: string
-        const authorization_header = request.header('authorization')
+        let privateKey: string
+        const authorizationHeader = request.header('authorization')
         
-        if ( authorization_header !== undefined) {
-            const parts = authorization_header.split(' ')
+        if ( authorizationHeader !== undefined) {
+            const parts = authorizationHeader.split(' ')
             const tokenParts = parts[1].split('.')
             
             const tokenId = base64.urlDecode(tokenParts[0])
@@ -144,9 +144,9 @@ export default class MessagesController {
             }
             
             const tokenObject = JSON.parse(token)
-            private_key = tokenObject.meta.privateKey
+            privateKey = tokenObject.meta.privateKey
         } else {
-            private_key = session.get('key')
+            privateKey = session.get('key')
         }
         
         
@@ -154,20 +154,20 @@ export default class MessagesController {
         *  Getting encrypted messages, keys and iv from database
         */
         
-        const { key_encrypted, iv } = (await Key.query().where('conversation_id', conv_id).andWhere('owner_id', user_id).select('key_encrypted', 'iv'))[0]
-        const key_AES = crypto.privateDecrypt(Buffer.from(private_key), Buffer.from(key_encrypted, 'base64'))
+        const { key_encrypted, iv } = (await Key.query().where('conversation_id', convId).andWhere('owner_id', userId).select('key_encrypted', 'iv'))[0]
+        const keyAes = crypto.privateDecrypt(Buffer.from(privateKey), Buffer.from(key_encrypted, 'base64'))
         
-        const messages = await Message.query().where('conversation_id', conv_id).orderBy('created_at', 'desc').offset(offset).limit(50)
+        const messages = await Message.query().where('conversation_id', convId).orderBy('created_at', 'desc').offset(offset).limit(50)
         
         /**
         *  Deciphering messages and serializing them
         */
         
         messages.forEach((element) => {
-            const decipher = crypto.createDecipheriv('aes-192-ctr', key_AES, Buffer.from(iv, 'hex'))
-            let decrypted_msg = decipher.update(element.content, 'hex', 'utf-8')
-            decrypted_msg += decipher.final('utf-8')
-            element.content = decrypted_msg
+            const decipher = crypto.createDecipheriv('aes-192-ctr', keyAes, Buffer.from(iv, 'hex'))
+            let decryptedMsg = decipher.update(element.content, 'hex', 'utf-8')
+            decryptedMsg += decipher.final('utf-8')
+            element.content = decryptedMsg
             element.serialize()
         })
         
@@ -185,20 +185,20 @@ export default class MessagesController {
     
     public async Read({ request, response }: HttpContextContract): Promise<void> {
         //Getting data
-        const { msg_id } = request.qs()
+        const { msgId } = request.qs()
         
         //QUERYING DB
         const trx = await Database.transaction()
         try {
-            const arrayMsg = await Database.from('messages').where('id', msg_id).update({ read: true }, ['conversation_id', 'created_at'])  //Update last_msg + infos abt him
-            const conv_id = arrayMsg[0].conversation_id
-            const created_at = arrayMsg[0].created_at
+            const arrayMsg = await Database.from('messages').where('id', msgId).update({ read: true }, ['conversationId', 'created_at'])  //Update last_msg + infos abt him
+            const convId = arrayMsg[0].conversation_id
+            const createdAt = arrayMsg[0].created_at
             
             //Update status of the latest msg of the same discussion
-            await Database.from('messages').where('conversation_id', conv_id).where('created_at', '<', created_at).where('read', false).update({ read: true })
+            await Database.from('messages').where('conversation_id', convId).where('created_at', '<', createdAt).where('read', false).update({ read: true })
             
             //Update conversation
-            await Database.from('conversations').where('id', conv_id).update({ last_msg_read: true })
+            await Database.from('conversations').where('id', convId).update({ last_msg_read: true })
             await trx.commit()
         } catch (e) {
             await trx.rollback()

@@ -106,8 +106,8 @@ export default class AuthController {
         try {
             //Token authentication
             if (request.qs().token !== undefined) {
-                const priavte_key_encrypted: string = (await User.query().where('email', email))[0].private_key
-                const privateKey: string = CryptoJS.enc.Utf8.stringify(CryptoJS.AES.decrypt(priavte_key_encrypted, password))
+                const privateKeyEncrypted: string = (await User.query().where('email', email))[0].private_key
+                const privateKey: string = CryptoJS.enc.Utf8.stringify(CryptoJS.AES.decrypt(privateKeyEncrypted, password))
                 
                 const token = await auth.use('api').attempt(email, password, { name: 'For the CLI app', expiresIn: '30mins', meta: { privateKey }})
                 
@@ -161,10 +161,10 @@ export default class AuthController {
     
     public async Token({ auth, response }: HttpContextContract): Promise<any> {
         //Get user_id
-        const user_id = auth.user!.id
+        const userId = auth.user!.id
         
         //Generate Token
-        const opaqueToken = await socketAuth.loginToken(user_id, '10min')
+        const opaqueToken = await socketAuth.loginToken(userId, '10min')
         
         return response.created({ status: "Created", data: opaqueToken?.toJSON()})
     }
