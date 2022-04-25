@@ -7,10 +7,10 @@ import Message from './Message'
 import CryptoJS from "crypto-js"
 
 export default class User extends BaseModel {
-  @hasMany(() => Participant, { foreignKey: 'user_id' })
+  @hasMany(() => Participant, { foreignKey: 'userId' })
   public participants: HasMany<typeof Participant>
 
-  @hasMany(() => Key, { foreignKey: 'owner_id' })
+  @hasMany(() => Key, { foreignKey: 'ownerId' })
   public keys: HasMany<typeof Key>
 
   @hasMany(() => Message, { foreignKey: 'author' })
@@ -35,10 +35,10 @@ export default class User extends BaseModel {
   public description: string
 
   @column({ serializeAs: null })
-  public private_key: string
+  public privateKey: string
 
   @column({ serializeAs: null })
-  public public_key: string
+  public publicKey: string
 
   @column.dateTime({ autoCreate: true, serializeAs: null })
   public createdAt: DateTime
@@ -49,7 +49,7 @@ export default class User extends BaseModel {
   @beforeSave()
   public static async hashPassword(user: User) {
     if (user.$dirty.password) {
-      user.private_key = CryptoJS.AES.encrypt(user.private_key, user.password).toString()
+      user.privateKey = CryptoJS.AES.encrypt(user.privateKey, user.password).toString()
       user.password = await Hash.make(user.password)
     }
 
@@ -61,7 +61,7 @@ export default class User extends BaseModel {
   @beforeUpdate()
   public static async thingsBeforeUpdate(user: User) {
     if (user.$dirty.password) {
-      user.private_key = CryptoJS.AES.encrypt(user.private_key, user.password).toString()
+      user.privateKey = CryptoJS.AES.encrypt(user.privateKey, user.password).toString()
       user.password = await Hash.make(user.password)
     }
   }

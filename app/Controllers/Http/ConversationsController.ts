@@ -64,7 +64,7 @@ export default class ConversationsController {
          */
 
         const participantsPayloadPromise = participantsWithoutCreatorObject.map(async (element) => {
-            const participant = await Database.from('users').where('username', element.username).andWhere('tag', element.tag).select('id')
+            const participant = await User.query().where('username', element.username).andWhere('tag', element.tag).select('id')
 
             /**
              *  We check if the participants are existing 
@@ -100,7 +100,7 @@ export default class ConversationsController {
         
         const keysPayloadPromise = participantsWithoutCreatorObject.map(async(element) => {
             const participant = await User.query().where('username', element.username).andWhere('tag', element.tag).select('public_key', 'id')
-            const participantPublicKey = participant[0].public_key
+            const participantPublicKey = participant[0].publicKey
             const participantId = participant[0].id
 
             const keyEncrypted = crypto.publicEncrypt(Buffer.from(participantPublicKey), Buffer.from(key))
@@ -113,7 +113,7 @@ export default class ConversationsController {
             }
         })
         const keysPayload = await Promise.all(keysPayloadPromise)
-        const connectedUserEncryptedKey = crypto.publicEncrypt(Buffer.from(connectedUser.public_key), Buffer.from(key))
+        const connectedUserEncryptedKey = crypto.publicEncrypt(Buffer.from(connectedUser.publicKey), Buffer.from(key))
         keysPayload.push({
             conversation_id: convId, 
             owner_id: connectedUser.id, 
@@ -180,6 +180,8 @@ export default class ConversationsController {
         /**
         *  Getting data from the request and get private key
         */
+
+        try {
         
         const userId = auth.user!.id
         const { offset } = request.qs()
@@ -232,8 +234,8 @@ export default class ConversationsController {
             const convId = element.id  
             
             //Decrypt key_AES and get iv
-            const { key_encrypted, iv } = (await Key.query().where('conversation_id', convId).andWhere('owner_id', userId).select('key_encrypted', 'iv'))[0]
-            const keyAES = crypto.privateDecrypt(Buffer.from(private_key), Buffer.from(key_encrypted, 'base64'))
+            const { keyEncrypted, iv } = (await Key.query().where('conversation_id', convId).andWhere('owner_id', userId).select('key_encrypted', 'iv'))[0]
+            const keyAES = crypto.privateDecrypt(Buffer.from(private_key), Buffer.from(keyEncrypted, 'base64'))
             
             //Decrypt message
             const decipher = crypto.createDecipheriv('aes-192-ctr', keyAES, Buffer.from(iv, 'hex'))
@@ -261,6 +263,11 @@ export default class ConversationsController {
         
         //Everything 😀
         return response.status(200).json({ data: data, status: "Ok" })
+
+    } catch(e) {
+        console.log(e)
+        return response.send({ errors: e })
+    }
     }
     
     
@@ -279,18 +286,15 @@ export default class ConversationsController {
         *  Get data from request 
         */
         
-        const { query, offset } = request.qs()
-        const user_id = auth.user!.id
-        
-        if (typeof offset !== "number") {
-            return response.badRequest({ status: "Bad Request" })
-        }
+        const { query, offsetString } = request.qs()
+        const offset = parseInt(offsetString)
+        const userId = auth.user!.id
         
         /**
         *  Getting private key, if session auth : it is in sessions cookies, if token auth : it is in the meta of the token
         */
         
-        let private_key: string
+        let privateKey: string
         const authorization_header = request.header('authorization')
         
         if ( authorization_header !== undefined) {
@@ -305,9 +309,9 @@ export default class ConversationsController {
             }
             
             const tokenObject = JSON.parse(token)
-            private_key = tokenObject.meta.privateKey
+            privateKey = tokenObject.meta.privateKey
         } else {
-            private_key = session.get('key')
+            privateKey = session.get('key')
         }
         
         
@@ -315,17 +319,17 @@ export default class ConversationsController {
         *  Get conversation id from database
         */
         
-        const user_conversations_id = await Conversation.query()
-        .whereHas('participants', (subQuery) => {
-            subQuery.where('user_id', user_id)
-        })
+        const userConversationsId = await Conversation.query()
+            .whereHas('participants', (subQuery) => {
+                subQuery.where('userId', userId)
+            })
         
         
         /**
         *  Retrieving conversations filtered by the query parameter and deciphering it
         */
         
-        const data = user_conversations_id.map(async(element) => {
+        const data = userConversationsId.map(async(element) => {
             
             /**
             *  Retrieving conversations filtered by the query parameter and serializing it 
@@ -333,7 +337,7 @@ export default class ConversationsController {
             
             const dataEncrypted = await Participant.query()
                 .where('conversation_id', element.id)
-                .andWhereNot('user_id', user_id)
+                .andWhereNot('user_id', userId)
                 .whereHas('users', (subQuery) => subQuery.where('username', 'like', `${query}%`))
                 .preload('conversations', query => query.orderBy('updated_at', 'desc'))
                 .offset(offset)
@@ -346,27 +350,27 @@ export default class ConversationsController {
             *  Deciphering the conversations and adding the redceiver's username to the data 
             */
             
-            const data_map = dataSerialized.map(async (element) => {
+            const dataMap = dataSerialized.map(async (element) => {
                 const conv_id = element.conversation.id 
                 
                 /**
                 *  Deciphering key and last message sent 
                 */
                 
-                const { key_encrypted, iv } = (await Key.query().where('conversation_id', conv_id).andWhere('owner_id', user_id).select('key_encrypted', 'iv'))[0]
-                const key_AES = crypto.privateDecrypt(Buffer.from(private_key), Buffer.from(key_encrypted, 'base64'))
+                const { keyEncrypted, iv } = (await Key.query().where('conversation_id', conv_id).andWhere('owner_id', userId).select('key_encrypted', 'iv'))[0]
+                const key_AES = crypto.privateDecrypt(Buffer.from(privateKey), Buffer.from(keyEncrypted, 'base64'))
                 
                 const decipher = crypto.createDecipheriv('aes-192-ctr', key_AES, Buffer.from(iv, 'hex'))
-                let decrypted_msg = decipher.update(element.conversation.last_msg_content, 'hex', 'utf-8')
-                decrypted_msg += decipher.final('utf-8')
-                element.conversation.last_msg_content = decrypted_msg
+                let decryptedMsg = decipher.update(element.conversation.last_msg_content, 'hex', 'utf-8')
+                decryptedMsg += decipher.final('utf-8')
+                element.conversation.last_msg_content = decryptedMsg
                 
                 /**
                 *  Adding receiver's username to data 
                 */
                 
-                const receiver_id = element.user_id
-                const { username } = (await User.query().where('id', receiver_id).select('username'))[0]
+                const receiverId = element.user_id
+                const { username } = (await User.query().where('id', receiverId).select('username'))[0]
                 element.receiver_username = username
                 element.receiver_id = element.user_id
                 delete element.user_id
@@ -375,7 +379,7 @@ export default class ConversationsController {
                 return element
             })
             
-            const conversations = await Promise.all(data_map)
+            const conversations = await Promise.all(dataMap)
             
             return conversations
         })

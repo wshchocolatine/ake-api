@@ -40,7 +40,7 @@ const redisConfig: RedisConfig = {
       port: Env.get('REDIS_PORT'),
       password: Env.get('REDIS_PASSWORD', ''),
       db: 0,
-      keyPrefix: '',
+      keyPrefix: ''
     },
   },
 }

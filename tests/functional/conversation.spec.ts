@@ -17,8 +17,7 @@ test.group('Conversations', () => {
     const louisUser = await User.findByOrFail('email', 'louis@ake-app.com')
 
     const payload = {
-      receiver_username: louisUser.username, 
-      receiver_tag: louisUser.tag, 
+      participantsWithoutCreator: [`${louisUser.username}#${louisUser.tag}`], 
       content: 'Hey, first message :))'
     }
 
@@ -31,7 +30,7 @@ test.group('Conversations', () => {
   test('Get Conversation', async({ client }) => {
       const marinUser = await User.findByOrFail('email', 'marin@ake-app.com')
 
-      const privateKeyEncrypted = (await User.findByOrFail('email', 'marin@ake-app.com')).private_key
+      const privateKeyEncrypted = (await User.findByOrFail('email', 'marin@ake-app.com')).privateKey
       const password = 'secret'
       const privateKey  = CryptoJS.enc.Utf8.stringify(CryptoJS.AES.decrypt(privateKeyEncrypted, password))
   
@@ -47,10 +46,10 @@ test.group('Conversations', () => {
   test('Search Conversation', async({ client }) => {
     const marinUser = await User.findByOrFail('email', 'marin@ake-app.com')
 
-    const privateKeyEncrypted = (await User.findByOrFail('email', 'marin@ake-app.com')).private_key
+    const privateKeyEncrypted = (await User.findByOrFail('email', 'marin@ake-app.com')).privateKey
     const password = 'secret'
     const privateKey  = CryptoJS.enc.Utf8.stringify(CryptoJS.AES.decrypt(privateKeyEncrypted, password))
-
+    
     const response = await client.get('/conversations/search?query=louis&offset=0').session({ key: privateKey }).loginAs(marinUser)
 
     response.assertStatus(200)

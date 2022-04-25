@@ -22,7 +22,7 @@ test.group('User', () => {
     const marinUser = await User.findByOrFail('email', 'marin@ake-app.com')
     const other_user = await User.findByOrFail('email', 'louis@ake-app.com')
 
-    const url = '/user/other/account?user_id=' + other_user.id
+    const url = '/user/other/account?userId=' + other_user.id
     const response = await client.get(url).loginAs(marinUser)
 
     response.assertStatus(200) 

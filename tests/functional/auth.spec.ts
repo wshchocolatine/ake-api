@@ -2,7 +2,6 @@ import { test } from '@japa/runner'
 import faker from '@faker-js/faker'
 import User from 'App/Models/User'
 import redis from '@ioc:Adonis/Addons/Redis'
-import Redis from '@ioc:Adonis/Addons/Redis'
 
 
 /**

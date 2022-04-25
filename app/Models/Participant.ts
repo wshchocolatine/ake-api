@@ -7,17 +7,17 @@ export default class Participant extends BaseModel {
   @column({ isPrimary: true })
   public id: number
 
-  @belongsTo(() => User, { foreignKey: 'user_id' })
+  @belongsTo(() => User, { foreignKey: 'userId' })
   public users: BelongsTo<typeof User>
 
-  @belongsTo(() => Conversation, { foreignKey: 'conversation_id', serializeAs: 'conversation' })
+  @belongsTo(() => Conversation, { foreignKey: 'conversationId', serializeAs: 'conversation' })
   public conversations: BelongsTo<typeof Conversation>
 
   @column()
-  public user_id: number
+  public userId: number
 
   @column()
-  public conversation_id: number
+  public conversationId: number
 
   @column.dateTime({ autoCreate: true })
   public createdAt: DateTime

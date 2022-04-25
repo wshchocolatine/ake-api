@@ -15,7 +15,7 @@ test.group('Messages', () => {
     const marinUser = await User.findByOrFail('email', 'marin@ake-app.com')
     const louisUser = await User.findByOrFail('email', 'louis@ake-app.com')
 
-    const privateKeyEncrypted = (await User.findByOrFail('email', 'marin@ake-app.com')).private_key
+    const privateKeyEncrypted = (await User.findByOrFail('email', 'marin@ake-app.com')).privateKey
     const password = 'secret'
     const privateKey  = CryptoJS.enc.Utf8.stringify(CryptoJS.AES.decrypt(privateKeyEncrypted, password))
 
@@ -26,7 +26,7 @@ test.group('Messages', () => {
       .limit(1)
     
     const payload = {
-      conv_id: user_conversations[0].id, 
+      convId: user_conversations[0].id, 
       content: faker.lorem.paragraph()
     }
 
@@ -39,18 +39,18 @@ test.group('Messages', () => {
     const marinUser = await User.findByOrFail('email', 'marin@ake-app.com')
     const louisUser = await User.findByOrFail('email', 'louis@ake-app.com')
     
-    const user_conversations = await Conversation.query()
+    const userConversations = await Conversation.query()
       .whereHas('participants', (subquery) => subquery.where('user_id', marinUser.id))
       .andWhereHas('participants', (subquery) => subquery.where('user_id', louisUser.id))
       .orderBy('updated_at', 'desc')
       .limit(1)
 
     
-    const privateKeyEncrypted = (await User.findByOrFail('email', 'marin@ake-app.com')).private_key
+    const privateKeyEncrypted = (await User.findByOrFail('email', 'marin@ake-app.com')).privateKey
     const password = 'secret'
     const privateKey  = CryptoJS.enc.Utf8.stringify(CryptoJS.AES.decrypt(privateKeyEncrypted, password))
 
-    const response = await client.get('/message/get?conv_id=' + user_conversations[0].id + '&offset=0').session({ key: privateKey }).loginAs(marinUser)
+    const response = await client.get('/message/get?convId=' + userConversations[0].id + '&offset=0').session({ key: privateKey }).loginAs(marinUser)
 
     response.assertStatus(200)
   })

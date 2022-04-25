@@ -5,29 +5,29 @@ import Key from './Key'
 import Message from './Message'
 
 export default class Conversation extends BaseModel {
-  @hasMany(() => Key, { foreignKey: 'conversation_id' })
+  @hasMany(() => Key, { foreignKey: 'conversationId' })
   public keys: HasMany<typeof Key>
 
-  @hasMany(() => Message, { foreignKey: 'conversation_id' })
+  @hasMany(() => Message, { foreignKey: 'conversationId' })
   public messages: HasMany<typeof Message>
 
-  @hasMany(() => Participant, { foreignKey: 'conversation_id' })
+  @hasMany(() => Participant, { foreignKey: 'conversationId' })
   public participants: HasMany<typeof Participant>
 
   @column({ isPrimary: true })
   public id: number
 
   @column()
-  public last_msg_content: string
+  public lastMsgContent: string
 
   @column()
-  public last_msg_author: number
+  public lastMsgAuthor: number
 
   @column()
-  public last_msg_read: boolean
+  public lastMsgRead: boolean
 
   @column()
-  public last_msg_id: number
+  public lastMsgId: number
 
   @column.dateTime({autoCreate: true})
   public createdAt: DateTime

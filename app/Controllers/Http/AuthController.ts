@@ -24,6 +24,7 @@ export default class AuthController {
     
     public async Register({ response, request, session, auth }: HttpContextContract): Promise<void> {
         
+        try {
         /**
         *  Validating and getting data
         */
@@ -63,8 +64,8 @@ export default class AuthController {
             email: email,
             description: description,
             password: password,
-            private_key: privateKey,
-            public_key: publicKey,
+            privateKey: privateKey,
+            publicKey: publicKey,
         }
         
         const user = await User.create(payload)
@@ -85,6 +86,9 @@ export default class AuthController {
         await auth.use('web').login(user)
         
         return response.created({ status: "Created" })
+    } catch(e) {
+        console.log(e)
+    }
     }
     
     
@@ -106,7 +110,7 @@ export default class AuthController {
         try {
             //Token authentication
             if (request.qs().token !== undefined) {
-                const privateKeyEncrypted: string = (await User.query().where('email', email))[0].private_key
+                const privateKeyEncrypted: string = (await User.query().where('email', email))[0].privateKey
                 const privateKey: string = CryptoJS.enc.Utf8.stringify(CryptoJS.AES.decrypt(privateKeyEncrypted, password))
                 
                 const token = await auth.use('api').attempt(email, password, { name: 'For the CLI app', expiresIn: '30mins', meta: { privateKey }})
@@ -117,7 +121,7 @@ export default class AuthController {
             //Web authentication
             else {
                 await auth.use('web').attempt(email, password)
-                session.put('key', CryptoJS.enc.Utf8.stringify(CryptoJS.AES.decrypt(auth.user!.private_key, password)))
+                session.put('key', CryptoJS.enc.Utf8.stringify(CryptoJS.AES.decrypt(auth.user!.privateKey, password)))
                 return response.created({ status: "Created" })
             }
         } catch (e) {

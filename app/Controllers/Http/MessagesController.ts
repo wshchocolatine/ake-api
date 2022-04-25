@@ -58,8 +58,8 @@ export default class MessagesController {
         *  Getting key and iv from database and ciphering the message 
         */
         
-        const { key_encrypted, iv } = (await Key.query().where('conversation_id', convId).andWhere('owner_id', userId).select('key_encrypted', 'iv'))[0]
-        const keyAES = crypto.privateDecrypt(Buffer.from(privateKey), Buffer.from(key_encrypted, 'base64'))
+        const { keyEncrypted, iv } = (await Key.query().where('conversation_id', convId).andWhere('owner_id', userId).select('key_encrypted', 'iv'))[0]
+        const keyAES = crypto.privateDecrypt(Buffer.from(privateKey), Buffer.from(keyEncrypted, 'base64'))
         
         const cipher = crypto.createCipheriv('aes-192-ctr', keyAES, Buffer.from(iv, 'hex'))
         let encryptedMsg = cipher.update(content, 'utf-8', 'hex')
@@ -94,7 +94,7 @@ export default class MessagesController {
             */
             
             const conversation = await Conversation.findOrFail(convId, { client: trx })   //Find conversation
-            await conversation.merge({ last_msg_content: encryptedMsg, last_msg_author: auth.user!.id, last_msg_read: false, last_msg_id: msgId }).useTransaction(trx).save()
+            await conversation.merge({ lastMsgContent: encryptedMsg, lastMsgAuthor: auth.user!.id, lastMsgRead: false, lastMsgId: msgId }).useTransaction(trx).save()
             
             await trx.commit()
         } catch (e) {
@@ -122,7 +122,8 @@ export default class MessagesController {
         /**
         *  Getting data from request
         */
-        const { convId, offset } = request.qs()
+        const { convId, offsetString } = request.qs()
+        const offset = parseInt(offsetString)
         const userId = auth.user!.id
         
         /**
@@ -154,8 +155,8 @@ export default class MessagesController {
         *  Getting encrypted messages, keys and iv from database
         */
         
-        const { key_encrypted, iv } = (await Key.query().where('conversation_id', convId).andWhere('owner_id', userId).select('key_encrypted', 'iv'))[0]
-        const keyAes = crypto.privateDecrypt(Buffer.from(privateKey), Buffer.from(key_encrypted, 'base64'))
+        const { keyEncrypted, iv } = (await Key.query().where('conversation_id', convId).andWhere('owner_id', userId).select('key_encrypted', 'iv'))[0]
+        const keyAes = crypto.privateDecrypt(Buffer.from(privateKey), Buffer.from(keyEncrypted, 'base64'))
         
         const messages = await Message.query().where('conversation_id', convId).orderBy('created_at', 'desc').offset(offset).limit(50)
         

@@ -52,8 +52,8 @@ export default class UserAndConversationSeeder extends BaseSeeder {
         let encrypted_msg = cipher.update(message, 'utf-8', 'hex')
         encrypted_msg += cipher.final('hex')
 
-        const louisPublicKey = louisUser.public_key
-        const marinPublicKey = marinUser.public_key
+        const louisPublicKey = louisUser.publicKey
+        const marinPublicKey = marinUser.publicKey
 
         const louisEncryptedKey = crypto.publicEncrypt(Buffer.from(louisPublicKey), Buffer.from(key))
         const marinEncrypedKey = crypto.publicEncrypt(Buffer.from(marinPublicKey), Buffer.from(key))
@@ -95,12 +95,12 @@ export default class UserAndConversationSeeder extends BaseSeeder {
 
         const participantPayload = [
           {
-            user_id: louisUser.id, 
-            conversation_id: conversationId, 
+            userId: louisUser.id, 
+            conversationId: conversationId, 
           }, 
           {
-            user_id: marinUser.id, 
-            conversation_id: conversationId
+            userId: marinUser.id, 
+            conversationId: conversationId
           }
         ]
 

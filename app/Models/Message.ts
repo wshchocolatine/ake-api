@@ -4,7 +4,7 @@ import Conversation from './Conversation'
 import User from './User'
 
 export default class Message extends BaseModel {
-  @belongsTo(() => Conversation, { foreignKey: 'conversation_id' })
+  @belongsTo(() => Conversation, { foreignKey: 'conversationId' })
   public conversations: BelongsTo<typeof Conversation>
 
   @belongsTo(() => User, { foreignKey: 'author' })
@@ -17,7 +17,7 @@ export default class Message extends BaseModel {
   public author: number
 
   @column()
-  public conversation_id: number
+  public conversationId: number
 
   @column()
   public content: string
