@@ -99,7 +99,10 @@ export default class MessagesController {
             await trx.commit()
         } catch (e) {
             await trx.rollback()
-            return response.internalServerError({ status: "Internal Server Error", errors: e })
+            return response.internalServerError({ 
+                status: "Internal Server Error",
+                errors: { message: 'Error at transaction' } 
+            })
         }
         
         
@@ -113,7 +116,7 @@ export default class MessagesController {
     * 
     *  Get 50 message of a conversation filtered by date from offset parameter
     * 
-    *  @route GET  /conversations/get:offset?
+    *  @route GET  /message/get:offset?
     * 
     */
     
@@ -122,8 +125,16 @@ export default class MessagesController {
         /**
         *  Getting data from request
         */
-        const { convId, offsetString } = request.qs()
-        const offset = parseInt(offsetString)
+        const { convId, offset } = request.qs()
+        const offsetInt = parseInt(offset)
+
+        if (convId === undefined || isNaN(offset)) {
+            return response.badRequest({ 
+                status: "Bad Request", 
+                errors: { message: 'Parameters are invalid or missing' }
+            })
+        }
+
         const userId = auth.user!.id
         
         /**
@@ -158,7 +169,7 @@ export default class MessagesController {
         const { keyEncrypted, iv } = (await Key.query().where('conversation_id', convId).andWhere('owner_id', userId).select('key_encrypted', 'iv'))[0]
         const keyAes = crypto.privateDecrypt(Buffer.from(privateKey), Buffer.from(keyEncrypted, 'base64'))
         
-        const messages = await Message.query().where('conversation_id', convId).orderBy('created_at', 'desc').offset(offset).limit(50)
+        const messages = await Message.query().where('conversation_id', convId).orderBy('created_at', 'desc').offset(offsetInt).limit(50)
         
         /**
         *  Deciphering messages and serializing them
@@ -172,7 +183,10 @@ export default class MessagesController {
             element.serialize()
         })
         
-        return response.status(200).json({ data: messages, status: "Ok" })
+        return response.status(200).json({ 
+            data: messages, 
+            status: "Ok" 
+        })
     }
     
     
@@ -187,23 +201,33 @@ export default class MessagesController {
     public async Read({ request, response }: HttpContextContract): Promise<void> {
         //Getting data
         const { msgId } = request.qs()
+
+        if (msgId === undefined) {
+            return response.badRequest({
+                status: 'Bad Request', 
+                errors: { message: 'Parameters are missing or invalid' }
+            })
+        }
         
         //QUERYING DB
         const trx = await Database.transaction()
         try {
-            const arrayMsg = await Database.from('messages').where('id', msgId).update({ read: true }, ['conversationId', 'created_at'])  //Update last_msg + infos abt him
+            const arrayMsg = await Message.query().where('id', msgId).update({ read: true }, ['conversation_id', 'created_at'])  //Update last_msg + infos abt him
             const convId = arrayMsg[0].conversation_id
             const createdAt = arrayMsg[0].created_at
             
             //Update status of the latest msg of the same discussion
-            await Database.from('messages').where('conversation_id', convId).where('created_at', '<', createdAt).where('read', false).update({ read: true })
+            await Message.query().where('conversation_id', convId).andWhere('created_at', '<', createdAt).andWhere('read', false).update({ read: true })
             
             //Update conversation
-            await Database.from('conversations').where('id', convId).update({ last_msg_read: true })
+            await Conversation.query().where('id', convId).update({ last_msg_read: true })
             await trx.commit()
         } catch (e) {
             await trx.rollback()
-            return response.internalServerError({ status: "Internal Server Error", errors: e })
+            return response.internalServerError({ 
+                status: "Internal Server Error", 
+                errors: { message: 'Error at transaction' } 
+            })
         }
         
         return response.created({ status: "Created" })

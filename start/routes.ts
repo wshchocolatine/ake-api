@@ -29,9 +29,9 @@ Route.get('logout', 'AuthController.Logout')
  */
 
 Route.group(() => {
-    Route.post('conversations/new', 'ConversationsController.New')
-    Route.get('conversations/get/:offset?', 'ConversationsController.Get')
-    Route.get('conversations/search/:query?:offset', 'ConversationsController.Search')
+    Route.post('/conversations/new', 'ConversationsController.New')
+    Route.get('/conversations/get/:offset?', 'ConversationsController.Get')
+    Route.get('/conversations/search/:query?:offset?', 'ConversationsController.Search')
 }).middleware('auth:api,web')
 
 /**
@@ -40,7 +40,7 @@ Route.group(() => {
 
 Route.group(() => {
     Route.get('/user/account', 'UsersController.Account')
-    Route.get('/user/other/account/:user_id?', 'UsersController.Other_Account')
+    Route.get('/user/other/account/:userId?', 'UsersController.Other_Account')
     Route.get('/user/token', 'AuthController.Token')
     Route.post('/user/description', 'UsersController.Change_Description')
     Route.post('/user/username', 'UsersController.Change_Username')
@@ -54,8 +54,8 @@ Route.group(() => {
 
 Route.group(() => {
     Route.post('/message/send', 'MessagesController.Send')
-    Route.get('/message/get/:conv_id?:offset?', 'MessagesController.Get')
-    Route.get('/message/read/:msg_id?', 'MessagesController.Read')
+    Route.get('/message/get', 'MessagesController.Get')
+    Route.get('/message/read/:msgId?', 'MessagesController.Read')
 }).middleware('auth:api,web')
 
 Route.get('/', () => {

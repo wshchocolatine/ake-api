@@ -23,8 +23,6 @@ export default class AuthController {
     */
     
     public async Register({ response, request, session, auth }: HttpContextContract): Promise<void> {
-        
-        try {
         /**
         *  Validating and getting data
         */
@@ -86,9 +84,6 @@ export default class AuthController {
         await auth.use('web').login(user)
         
         return response.created({ status: "Created" })
-    } catch(e) {
-        console.log(e)
-    }
     }
     
     
@@ -126,8 +121,7 @@ export default class AuthController {
             }
         } catch (e) {
             //Returning bad credentials
-            console.log(e)
-            return response.unauthorized({ status: "Unauthorized", errors: e })
+            return response.unauthorized({ status: "Unauthorized", errors: { message: 'Bad credentials' } })
         }
     }
     

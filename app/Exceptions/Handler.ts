@@ -25,7 +25,9 @@ export default class ExceptionHandler extends HttpExceptionHandler {
 
   public async handle(error: any, ctx: HttpContextContract) {
     if (error.code === 'E_VALIDATION_FAILURE') {
-      const statusNumber: number = error.messages.errors[0].message.split(':')[0]
+      const statusNumber = error.messages.errors[0].message.split(':')[0]
+      const messageError = error.messages.errors[0].message.split(':')[1]
+      error.messages.errors[0].message = messageError
       return ctx.response.status(statusNumber).json({
         status: status[statusNumber], 
         errors: error.messages.errors[0]
@@ -44,6 +46,17 @@ export default class ExceptionHandler extends HttpExceptionHandler {
         status: "Unauthorized"
       })
     }
+
+    if(error.code === 'E_INTERNAL_SERVER_ERROR') {
+      return ctx.response.internalServerError({
+        status: 'Internal Server Error'
+      })
+    }
   
+    if(error.code === 'E_ROUTE_NOT_FOUND') {
+      return ctx.response.notFound({
+        status: 'Not Found'
+      })
+    }
   }
 }
