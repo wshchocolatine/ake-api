@@ -5,11 +5,9 @@ export default class Conversations extends BaseSchema {
 
     public async up() {
         this.schema.createTable(this.tableName, (table) => {
-            table.bigIncrements('id').unsigned();
-            table.text('last_msg_content');
-            table.bigInteger('last_msg_author').unsigned();
-            table.bigInteger('last_msg_id');
-            table.boolean('last_msg_read');
+            table.increments('id').unsigned()
+            table.bigint('creator_id').unsigned().references('users.id')
+            table.bigint('first_message_id').unsigned()
             table.timestamp('created_at', { useTz: true });
             table.timestamp('updated_at', { useTz: true });
         });

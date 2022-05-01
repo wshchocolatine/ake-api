@@ -5,6 +5,7 @@ import Participant from './Participant';
 import Key from './Key';
 import Message from './Message';
 import CryptoJS from 'crypto-js';
+import Conversation from './Conversation';
 
 export default class User extends BaseModel {
     @hasMany(() => Participant, { foreignKey: 'userId' })
@@ -13,8 +14,11 @@ export default class User extends BaseModel {
     @hasMany(() => Key, { foreignKey: 'ownerId' })
     public keys: HasMany<typeof Key>;
 
-    @hasMany(() => Message, { foreignKey: 'author' })
+    @hasMany(() => Message, { foreignKey: 'authorId' })
     public messages: HasMany<typeof Message>;
+
+    @hasMany(() => Conversation, { foreignKey: 'creatorId' })
+    public conversations: HasMany<typeof Conversation>
 
     @column({ isPrimary: true })
     public id: number;

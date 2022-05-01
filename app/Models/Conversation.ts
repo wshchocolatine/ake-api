@@ -1,8 +1,9 @@
 import { DateTime } from 'luxon';
-import { BaseModel, column, HasMany, hasMany } from '@ioc:Adonis/Lucid/Orm';
+import { BaseModel, column, HasMany, hasMany, belongsTo, BelongsTo, } from '@ioc:Adonis/Lucid/Orm';
 import Participant from './Participant';
 import Key from './Key';
 import Message from './Message';
+import User from './User';
 
 export default class Conversation extends BaseModel {
     @hasMany(() => Key, { foreignKey: 'conversationId' })
@@ -14,20 +15,17 @@ export default class Conversation extends BaseModel {
     @hasMany(() => Participant, { foreignKey: 'conversationId' })
     public participants: HasMany<typeof Participant>;
 
+    @belongsTo(() => User, { foreignKey: 'creatorId' })
+    public users: BelongsTo<typeof User>
+
     @column({ isPrimary: true })
     public id: number;
 
-    @column()
-    public lastMsgContent: string;
+    @column({ serializeAs: null })
+    public creatorId: number; 
 
-    @column()
-    public lastMsgAuthor: number;
-
-    @column()
-    public lastMsgRead: boolean;
-
-    @column()
-    public lastMsgId: number;
+    @column({ serializeAs: null })
+    public firstMessageId: number;
 
     @column.dateTime({ autoCreate: true })
     public createdAt: DateTime;

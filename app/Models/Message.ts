@@ -1,9 +1,13 @@
 import { DateTime } from 'luxon';
-import { BaseModel, BelongsTo, belongsTo, column } from '@ioc:Adonis/Lucid/Orm';
+import { BaseModel, BelongsTo, belongsTo, column, HasMany, hasMany } from '@ioc:Adonis/Lucid/Orm';
 import Conversation from './Conversation';
 import User from './User';
+import MessageStatus from './MessageStatus';
 
 export default class Message extends BaseModel {
+    @hasMany(() => MessageStatus, { foreignKey: 'messageId'})
+    public messageStatuses: HasMany<typeof MessageStatus>
+    
     @belongsTo(() => Conversation, { foreignKey: 'conversationId' })
     public conversations: BelongsTo<typeof Conversation>;
 
@@ -21,9 +25,6 @@ export default class Message extends BaseModel {
 
     @column()
     public content: string;
-
-    @column()
-    public read: boolean;
 
     @column.dateTime({ autoCreate: true })
     public createdAt: DateTime;
