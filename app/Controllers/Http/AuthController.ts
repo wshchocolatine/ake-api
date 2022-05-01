@@ -163,7 +163,7 @@ export default class AuthController {
      *
      */
 
-    public async Token({ auth, response }: HttpContextContract): Promise<void> {
+    public async SocketToken({ auth, response }: HttpContextContract): Promise<void> {
         //Get user_id
         const userId = auth.user!.id;
 

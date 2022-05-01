@@ -46,7 +46,7 @@ test.group('Auth', async () => {
     test('Socket token', async ({ client }) => {
         const marinUser = await User.findByOrFail('email', 'marin@ake-app.com');
 
-        const response = await client.get('/user/token').loginAs(marinUser);
+        const response = await client.get('/auth/sockets/token').loginAs(marinUser);
 
         response.assertStatus(201);
         response.assertBodyContains({ status: 'Created', data: {} });

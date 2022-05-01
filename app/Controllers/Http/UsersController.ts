@@ -6,37 +6,28 @@ import ChangeDescriptionValidator from 'App/Validators/ChangeDescriptionValidato
 import ChangeUsernameValidator from 'App/Validators/ChangeUsernameValidator';
 
 export default class UsersController {
-    public async Account({ response, auth }: HttpContextContract): Promise<void> {
-        //Getting data about the user from the auth
-        const data = {
-            username: auth.user!.username,
-            tag: auth.user!.tag,
-            email: auth.user!.email,
-            description: auth.user!.description,
-            id: auth.user!.id,
-        };
 
-        return response.status(200).json({ data: data, status: 'Ok' });
+    public async AccountInformations({ request, response, auth }: HttpContextContract): Promise<void> {
+        const { userId } = request.qs()
+
+        if (userId === undefined) {
+            const user = auth.user!.serialize()
+
+            return response.ok({ status: "Ok", data: user })
+        } else{
+            const user = await User.findOrFail(userId)
+
+            const payload = user.serialize({
+                fields: {
+                    omit: ['email']
+                }
+            })
+
+            return response.ok({ status: "Ok", data: payload })
+        }
     }
 
-    public async Other_Account({ request, response }: HttpContextContract): Promise<void> {
-        //Get data abt the request
-        const { userId } = request.qs();
-
-        //Get data from db
-        const user = await User.findOrFail(userId);
-
-        //Send data
-        const payload = {
-            user_id: user.id,
-            username: user.username,
-            tag: user.tag,
-            description: user.description,
-        };
-        return response.status(200).json({ data: payload, status: 'Ok' });
-    }
-
-    public async Change_Description({ request, response, auth }: HttpContextContract): Promise<void> {
+    public async ChangeDescription({ request, response, auth }: HttpContextContract): Promise<void> {
         //Getting data
         const { description } = await request.validate(ChangeDescriptionValidator);
         const userId = auth.user!.id;
@@ -49,7 +40,7 @@ export default class UsersController {
         return response.created({ status: 'Created' });
     }
 
-    public async Change_Username({ request, response, auth }: HttpContextContract): Promise<void> {
+    public async ChangeUsername({ request, response, auth }: HttpContextContract): Promise<void> {
         //Getting data
         const userId = auth.user!.id;
         const { username } = await request.validate(ChangeUsernameValidator);
@@ -74,7 +65,7 @@ export default class UsersController {
         return response.created({ status: 'Created' });
     }
 
-    public async Get_Profile_Picture({ response, auth }: HttpContextContract): Promise<any> {
+    public async Get_Profile_Picture({ response, auth }: HttpContextContract): Promise<void> {
         const userId = auth.user!.id;
         return response.attachment(Application.tmpPath('uploads', `${userId}.profilepicture`));
     }

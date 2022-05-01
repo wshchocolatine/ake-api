@@ -10,7 +10,7 @@ test.group('User', () => {
     test('Informations about your account', async ({ client }) => {
         const marinUser = await User.findByOrFail('email', 'marin@ake-app.com');
 
-        const response = await client.get('/user/account').loginAs(marinUser);
+        const response = await client.get('/user/account/informations').loginAs(marinUser);
 
         response.assertStatus(200);
         response.assertBodyContains({ data: {}, status: 'Ok' });
@@ -20,7 +20,7 @@ test.group('User', () => {
         const marinUser = await User.findByOrFail('email', 'marin@ake-app.com');
         const other_user = await User.findByOrFail('email', 'louis@ake-app.com');
 
-        const url = '/user/other/account?userId=' + other_user.id;
+        const url = '/user/account/informations?userId=' + other_user.id;
         const response = await client.get(url).loginAs(marinUser);
 
         response.assertStatus(200);
