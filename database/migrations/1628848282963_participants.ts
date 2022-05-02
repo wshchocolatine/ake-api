@@ -6,8 +6,8 @@ export default class Participants extends BaseSchema {
     public async up() {
         this.schema.createTable(this.tableName, (table) => {
             table.increments('id');
-            table.bigInteger('user_id').unsigned().references('users.id');
-            table.bigInteger('conversation_id').unsigned().references('conversations.id');
+            table.string('user_id', 50).references('users.id').notNullable();
+            table.string('conversation_id', 50).references('conversations.id').notNullable();
 
             /**
              * Uses timestamptz for PostgreSQL and DATETIME2 for MSSQL

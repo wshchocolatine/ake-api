@@ -15,13 +15,13 @@ export default class Message extends BaseModel {
     public users: BelongsTo<typeof User>;
 
     @column({ isPrimary: true })
-    public id: number;
+    public id: string;
 
     @column()
-    public author: number;
+    public authorId: string;
 
     @column()
-    public conversationId: number;
+    public conversationId: string;
 
     @column()
     public content: string;

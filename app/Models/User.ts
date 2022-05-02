@@ -21,7 +21,7 @@ export default class User extends BaseModel {
     public conversations: HasMany<typeof Conversation>
 
     @column({ isPrimary: true })
-    public id: number;
+    public id: string;
 
     @column()
     public username: string;

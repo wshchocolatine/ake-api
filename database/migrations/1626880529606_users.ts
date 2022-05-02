@@ -6,15 +6,15 @@ export default class Users extends BaseSchema {
     public async up() {
         this.schema.createTable(this.tableName, (table) => {
             //Public Info
-            table.bigIncrements('id').unsigned();
-            table.string('username', 25);
-            table.integer('tag', 4).unsigned();
-            table.string('email', 320);
+            table.string('id', 50).primary();
+            table.string('username', 25).notNullable();
+            table.integer('tag', 4).unsigned().notNullable();
+            table.string('email', 320).notNullable();
             table.string('description');
             //Private Info
-            table.text('password');
-            table.text('private_key');
-            table.text('public_key');
+            table.text('password').notNullable();
+            table.text('private_key').notNullable();
+            table.text('public_key').notNullable();
             //Date
             table.timestamp('created_at', { useTz: true });
             table.timestamp('updated_at', { useTz: true });

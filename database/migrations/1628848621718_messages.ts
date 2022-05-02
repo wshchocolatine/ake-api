@@ -5,10 +5,10 @@ export default class Messages extends BaseSchema {
 
     public async up() {
         this.schema.createTable(this.tableName, (table) => {
-            table.bigIncrements('id').unsigned();
-            table.text('content');
-            table.bigInteger('author_id').unsigned().references('users.id');
-            table.bigInteger('conversation_id').unsigned().references('conversations.id');
+            table.string('id', 50).primary();
+            table.text('content').notNullable();
+            table.string('author_id', 50).references('users.id').notNullable();
+            table.string('conversation_id', 50).references('conversations.id').notNullable();
 
             /**
              * Uses timestamptz for PostgreSQL and DATETIME2 for MSSQL

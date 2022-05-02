@@ -6,8 +6,8 @@ export default class Keys extends BaseSchema {
     public async up() {
         this.schema.createTable(this.tableName, (table) => {
             table.increments('id');
-            table.bigInteger('conversation_id').notNullable().unsigned().references('conversations.id');
-            table.bigInteger('owner_id').notNullable().unsigned().references('users.id');
+            table.string('conversation_id', 50).references('conversations.id').notNullable()
+            table.string('owner_id', 50).references('users.id').notNullable()
             table.text('key_encrypted').notNullable();
             table.string('iv').notNullable();
             /**

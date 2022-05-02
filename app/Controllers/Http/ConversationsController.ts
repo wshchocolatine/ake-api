@@ -1,6 +1,6 @@
 import { HttpContextContract } from '@ioc:Adonis/Core/HttpContext';
 import Database from '@ioc:Adonis/Lucid/Database';
-import { base64 } from '@ioc:Adonis/Core/Helpers';
+import { base64, cuid } from '@ioc:Adonis/Core/Helpers';
 import crypto from 'crypto';
 import Key from 'App/Models/Key';
 import Conversation from 'App/Models/Conversation';

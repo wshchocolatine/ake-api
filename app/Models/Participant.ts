@@ -17,10 +17,10 @@ export default class Participant extends BaseModel {
     public conversations: BelongsTo<typeof Conversation>;
 
     @column()
-    public userId: number;
+    public userId: string;
 
     @column()
-    public conversationId: number;
+    public conversationId: string;
 
     @column.dateTime({ autoCreate: true })
     public createdAt: DateTime;

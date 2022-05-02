@@ -14,10 +14,10 @@ export default class Key extends BaseModel {
     public id: number;
 
     @column()
-    public conversationId: number;
+    public conversationId: string;
 
     @column()
-    public ownerId: number;
+    public ownerId: string;
 
     @column()
     public keyEncrypted: string;

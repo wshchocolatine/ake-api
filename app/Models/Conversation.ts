@@ -19,13 +19,13 @@ export default class Conversation extends BaseModel {
     public users: BelongsTo<typeof User>
 
     @column({ isPrimary: true })
-    public id: number;
+    public id: string;
 
     @column({ serializeAs: null })
-    public creatorId: number; 
+    public creatorId: string; 
 
     @column({ serializeAs: null })
-    public firstMessageId: number;
+    public firstMessageId: string;
 
     @column.dateTime({ autoCreate: true })
     public createdAt: DateTime;

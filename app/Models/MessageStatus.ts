@@ -14,10 +14,10 @@ export default class MessageStatus extends BaseModel {
     public id: number; 
 
     @column()
-    public userId: number; 
+    public userId: string; 
 
     @column()
-    public conversationId: number; 
+    public conversationId: string; 
 
     @column.dateTime({ autoCreate: true })
     public createdAt: DateTime; 
