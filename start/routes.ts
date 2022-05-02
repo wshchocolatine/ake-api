@@ -23,7 +23,7 @@ import Route from '@ioc:Adonis/Core/Route';
 Route.post('register', 'AuthController.Register');
 Route.post('login', 'AuthController.Login');
 Route.get('logout', 'AuthController.Logout');
-Route.get('/auth/sockets/token', 'AuthController.SocketToken').middleware('auth:api,web')
+Route.get('/auth/sockets/token', 'AuthController.SocketToken').middleware('auth:api,web');
 
 /**
  * Conversations routes
@@ -40,7 +40,7 @@ Route.group(() => {
  */
 
 Route.group(() => {
-    Route.get('/user/account/informations', "UsersController.AccountInformations")
+    Route.get('/user/account/informations', 'UsersController.AccountInformations');
     Route.post('/user/description', 'UsersController.ChangeDescription');
     Route.post('/user/username', 'UsersController.ChangeUsername');
     /*     Route.post('/user/picture', 'UsersController.Store_Profile_Picture')

@@ -4,10 +4,10 @@ import { UserFactory } from 'Database/factories';
 import crypto from 'crypto';
 import Conversation from 'App/Models/Conversation';
 import Message from 'App/Models/Message';
-import MessageStatus from 'App/Models/MessageStatus';
 import Key from 'App/Models/Key';
 import Participant from 'App/Models/Participant';
 import User from 'App/Models/User';
+import MessageStatus from 'App/Models/MessageStatus';
 
 export default class UserAndConversationSeeder extends BaseSeeder {
     public async run() {
@@ -59,16 +59,24 @@ export default class UserAndConversationSeeder extends BaseSeeder {
 
         const convPayload = {
             id: conversationId,
-            creatorId: louisUser.id, 
-            firstMessageId: msgId
+            creatorId: louisUser.id,
+            firstMessageId: msgId,
         };
 
-        const msgPayload = {
-            id: msgId,
-            authorId: louisUser.id,
-            conversationId: conversationId,
-            content: encryptedMsg,
-        };
+        const msgPayload = [
+            {
+                id: msgId,
+                authorId: louisUser.id,
+                conversationId: conversationId,
+                content: encryptedMsg,
+            },
+            {
+                id: 'b',
+                authorId: louisUser.id,
+                conversationId: conversationId,
+                content: encryptedMsg,
+            },
+        ];
 
         const keyPayload = [
             {
@@ -98,20 +106,33 @@ export default class UserAndConversationSeeder extends BaseSeeder {
 
         const messageStatutesPayload = [
             {
-                userId: louisUser.id, 
-                read: true
-            }, 
+                messageId: msgId,
+                userId: louisUser.id,
+                read: true,
+            },
             {
-                userId: marinUser.id, 
-                read: false
-            }
-        ]
+                messageId: msgId,
+                userId: marinUser.id,
+                read: false,
+            },
+            {
+                messageId: 'b',
+                userId: louisUser.id,
+                read: true,
+            },
+            {
+                messageId: 'b',
+                userId: marinUser.id,
+                read: false,
+            },
+        ];
 
         const trx = await Database.transaction();
         try {
             await Conversation.create(convPayload, { client: trx });
             await Participant.createMany(participantPayload, { client: trx });
-            await (await Message.create(msgPayload, { client: trx })).related('messageStatuses').createMany(messageStatutesPayload)
+            await Message.createMany(msgPayload, { client: trx });
+            await MessageStatus.createMany(messageStatutesPayload, { client: trx });
             // await MessageStatus.createMany(messageStatutesPayload, { client: trx})
             await Key.createMany(keyPayload, { client: trx });
 

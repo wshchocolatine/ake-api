@@ -11,20 +11,20 @@ export default class MessageStatus extends BaseModel {
     public messages: BelongsTo<typeof Message>;
 
     @column({ isPrimary: true })
-    public id: number; 
+    public id: number;
 
     @column()
-    public userId: string; 
+    public userId: string;
 
     @column()
-    public messageId: string
+    public messageId: string;
 
     @column()
-    public read: boolean
+    public read: boolean;
 
     @column.dateTime({ autoCreate: true })
-    public createdAt: DateTime; 
+    public createdAt: DateTime;
 
     @column.dateTime({ autoCreate: true, autoUpdate: true })
-    public updatedAt: DateTime
+    public updatedAt: DateTime;
 }

@@ -17,7 +17,6 @@ export default class ConversationsController {
      *  Create a new conversation with an user
      *
      *  @route POST /conversations/new
-     *
      */
 
     public async New({ response, request, auth }: HttpContextContract): Promise<void> {
@@ -40,8 +39,8 @@ export default class ConversationsController {
          *  Creating id for conversation and message
          */
 
-        const convId = cuid()
-        const msgId = cuid()
+        const convId = cuid();
+        const msgId = cuid();
 
         /**
          *  Ciphering the message with creating key and iv for aes-192-cbc
@@ -141,20 +140,20 @@ export default class ConversationsController {
             const participant = await User.query()
                 .where('username', element.username)
                 .andWhere('tag', element.tag)
-                .select('id')
+                .select('id');
 
-            const participantId = participant[0].id
+            const participantId = participant[0].id;
 
             return {
-                userId: participantId, 
-                read: false
-            }
-        })
-        const messageStatutesPayload = await Promise.all(messageStatutesPayloadPromise)
+                userId: participantId,
+                read: false,
+            };
+        });
+        const messageStatutesPayload = await Promise.all(messageStatutesPayloadPromise);
         messageStatutesPayload.push({
-            userId: connectedUser.id, 
-            read: true
-        }) //Puhsing into the array the creator
+            userId: connectedUser.id,
+            read: true,
+        }); //Puhsing into the array the creator
 
         /**
          *  Preparing conversation and message payloads.
@@ -162,8 +161,8 @@ export default class ConversationsController {
 
         const convPayload = {
             id: convId,
-            creatorId: connectedUser.id, 
-            firstMessageId: msgId
+            creatorId: connectedUser.id,
+            firstMessageId: msgId,
         };
 
         const msgPayload = {
@@ -180,14 +179,16 @@ export default class ConversationsController {
         const trx = await Database.transaction();
         try {
             await Conversation.create(convPayload, { client: trx });
-            await (await Message.create(msgPayload, { client: trx })).related('messageStatuses').createMany(messageStatutesPayload);
+            await (await Message.create(msgPayload, { client: trx }))
+                .related('messageStatuses')
+                .createMany(messageStatutesPayload);
             await Key.createMany(keysPayload, { client: trx });
             //@ts-ignore
             await Participant.createMany(participantsPayload, { client: trx });
             await trx.commit();
         } catch (e) {
             await trx.rollback();
-            console.log(e)
+            console.log(e);
             return response.internalServerError({
                 status: 'Internal Server Error',
                 errors: { message: 'Error at transaction' },
@@ -235,7 +236,7 @@ export default class ConversationsController {
          * Getting private key, if session auth : it is in sessions cookies, if token auth : it is in the meta of the token
          */
 
-        let private_key: string;
+        let privateKey: string;
         const authorization_header = request.header('authorization');
 
         if (authorization_header !== undefined) {
@@ -250,9 +251,9 @@ export default class ConversationsController {
             }
 
             const tokenObject = JSON.parse(token);
-            private_key = tokenObject.meta.privateKey;
+            privateKey = tokenObject.meta.privateKey;
         } else {
-            private_key = session.get('key');
+            privateKey = session.get('key');
         }
 
         /**
@@ -266,6 +267,10 @@ export default class ConversationsController {
             .offset(offset)
             .limit(12);
 
+        if (userConversations.length === 0) {
+            return response.ok({ status: 'Ok', data: [] });
+        }
+
         /**
          * Deciphering conversations, serializing them, and adding the username of the receiver
          */
@@ -275,7 +280,19 @@ export default class ConversationsController {
         const userConversationsMap = userConversationsSerialized.map(async (element) => {
             const convId = element.id;
 
-            //Decrypt key_AES and get iv
+            //Get the last message of each conversation
+            const lastMessageConv = (
+                await Message.query()
+                    .where('conversation_id', element.id)
+                    .preload('messageStatuses', (subquery) =>
+                        subquery.select('read').where('user_id', userId)
+                    )
+                    .select('id', 'content', 'author_id', 'created_at')
+                    .orderBy('created_at', 'desc')
+                    .limit(1)
+            )[0];
+
+            //Decrypted AES key and get iv
             const { keyEncrypted, iv } = (
                 await Key.query()
                     .where('conversation_id', convId)
@@ -283,29 +300,43 @@ export default class ConversationsController {
                     .select('key_encrypted', 'iv')
             )[0];
             const keyAES = crypto.privateDecrypt(
-                Buffer.from(private_key),
+                Buffer.from(privateKey),
                 Buffer.from(keyEncrypted, 'base64')
             );
 
             //Decrypt message
             const decipher = crypto.createDecipheriv('aes-192-ctr', keyAES, Buffer.from(iv, 'hex'));
-            let decryptedMsg = decipher.update(element.last_msg_content, 'hex', 'utf-8');
+            let decryptedMsg = decipher.update(lastMessageConv.content, 'hex', 'utf-8');
             decryptedMsg += decipher.final('utf-8');
-            element.last_msg_content = decryptedMsg;
 
             //Adding participant's username to participants key
-            const participantsConversation = element.participants.map(async (elementBis) => {
+            const participantsPromise = element.participants.map(async (elementBis) => {
                 const participantId = elementBis.user_id;
-                const { username } = (await User.query().where('id', participantId).select('username'))[0];
+
+                const { username, tag } = (
+                    await User.query().where('id', participantId).select('username', 'tag')
+                )[0];
 
                 return {
                     user_id: participantId,
-                    username: username,
+                    username,
+                    tag,
                 };
             });
-            element.participants = await Promise.all(participantsConversation);
+            const participants = await Promise.all(participantsPromise);
 
-            return element;
+            //Return element
+            return {
+                conversation_id: convId,
+                participants,
+                last_message: {
+                    id: lastMessageConv.id,
+                    author_id: lastMessageConv.authorId,
+                    content: decryptedMsg,
+                    read: lastMessageConv.messageStatuses[0].read,
+                    created_at: lastMessageConv.createdAt,
+                },
+            };
         });
 
         const data = await Promise.all(userConversationsMap);
@@ -362,10 +393,6 @@ export default class ConversationsController {
             privateKey = session.get('key');
         }
 
-        /**
-         *  Get conversation id from database
-         */
-
         const userConversationsId = await Conversation.query().whereHas('participants', (subQuery) => {
             subQuery.where('userId', userId);
         });
@@ -374,36 +401,56 @@ export default class ConversationsController {
          * Retrieving conversations filtered by the query parameter and deciphering it
          */
 
-        const data = userConversationsId.map(async (element) => {
-            /**
-             * Retrieving conversations filtered by the query parameter and serializing it
-             */
-
-            const dataEncrypted = await Participant.query()
+        const dataPromise = userConversationsId.map(async (element) => {
+            const conversationsWithoutLastMessages = await Participant.query()
                 .where('conversation_id', element.id)
                 .andWhereNot('user_id', userId)
                 .whereHas('users', (subQuery) => subQuery.where('username', 'like', `${query}%`))
                 .preload('conversations', (query) => query.orderBy('updated_at', 'desc'))
                 .offset(offsetInt)
                 .select('conversation_id', 'user_id')
+                .distinct('conversation_id')
                 .limit(12);
 
-            const dataSerialized = dataEncrypted.map((conv) => conv.serialize());
+            const conversationsWithoutLastMessagesSerialized = conversationsWithoutLastMessages.map((conv) =>
+                conv.serialize()
+            );
 
-            /**
-             * Deciphering the conversations and adding the redceiver's username to the data
-             */
+            //Getting participant's username and tag
+            const participantsPromise = conversationsWithoutLastMessagesSerialized.map(async (element) => {
+                const participantId = element.user_id;
+                const { username, tag } = (
+                    await User.query().where('id', participantId).select('username', 'tag')
+                )[0];
 
-            const dataMap = dataSerialized.map(async (element) => {
-                const conv_id = element.conversation.id;
+                return {
+                    user_id: participantId,
+                    username,
+                    tag,
+                };
+            });
+            const participants = await Promise.all(participantsPromise);
 
-                /**
-                 * Deciphering key and last message sent
-                 */
+            //Getting last message and deciphering it
+            const conversationsPromise = conversationsWithoutLastMessagesSerialized.map(async (element) => {
+                const convId = element.conversation.id;
 
+                //Get the last message of each conversation
+                const lastMessageConv = (
+                    await Message.query()
+                        .where('conversation_id', convId)
+                        .preload('messageStatuses', (subquery) =>
+                            subquery.select('read').where('user_id', userId)
+                        )
+                        .select('id', 'content', 'author_id', 'created_at')
+                        .orderBy('created_at', 'desc')
+                        .limit(1)
+                )[0];
+
+                //Decrypt AES key and get iv
                 const { keyEncrypted, iv } = (
                     await Key.query()
-                        .where('conversation_id', conv_id)
+                        .where('conversation_id', convId)
                         .andWhere('owner_id', userId)
                         .select('key_encrypted', 'iv')
                 )[0];
@@ -412,34 +459,34 @@ export default class ConversationsController {
                     Buffer.from(keyEncrypted, 'base64')
                 );
 
+                //Decrypted message
                 const decipher = crypto.createDecipheriv('aes-192-ctr', key_AES, Buffer.from(iv, 'hex'));
-                let decryptedMsg = decipher.update(element.conversation.last_msg_content, 'hex', 'utf-8');
+                let decryptedMsg = decipher.update(lastMessageConv.content, 'hex', 'utf-8');
                 decryptedMsg += decipher.final('utf-8');
-                element.conversation.last_msg_content = decryptedMsg;
 
-                /**
-                 * Adding receiver's username to data
-                 */
+                //Return element
 
-                const receiverId = element.user_id;
-                const { username } = (await User.query().where('id', receiverId).select('username'))[0];
-                element.receiver_username = username;
-                element.receiver_id = element.user_id;
-                delete element.user_id;
-                delete element.conversation_id;
-
-                return element;
+                return {
+                    conversation_id: convId,
+                    participants,
+                    last_message: {
+                        id: lastMessageConv.id,
+                        author_id: lastMessageConv.authorId,
+                        content: decryptedMsg,
+                        read: lastMessageConv.messageStatuses[0].read,
+                        created_at: lastMessageConv.createdAt,
+                    },
+                };
             });
 
-            const conversations = await Promise.all(dataMap);
-
+            const conversations = await Promise.all(conversationsPromise);
             return conversations;
         });
 
         //Promises...
-        const payload = await Promise.all(data);
+        const data = await Promise.all(dataPromise);
 
         //Returning response
-        return response.status(200).json({ data: payload, status: 'Ok' });
+        return response.status(200).json({ status: 'Ok', data });
     }
 }

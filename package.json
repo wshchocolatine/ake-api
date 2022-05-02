@@ -6,7 +6,7 @@
         "build": "node ace build --production",
         "start": "node server.js",
         "dev": "node ace serve --watch",
-        "prettier": ""
+        "format": "npx prettier --write . "
     },
     "devDependencies": {
         "@adonisjs/assembler": "^5.6.1",

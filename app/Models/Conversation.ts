@@ -1,5 +1,5 @@
 import { DateTime } from 'luxon';
-import { BaseModel, column, HasMany, hasMany, belongsTo, BelongsTo, } from '@ioc:Adonis/Lucid/Orm';
+import { BaseModel, column, HasMany, hasMany, belongsTo, BelongsTo } from '@ioc:Adonis/Lucid/Orm';
 import Participant from './Participant';
 import Key from './Key';
 import Message from './Message';
@@ -16,13 +16,13 @@ export default class Conversation extends BaseModel {
     public participants: HasMany<typeof Participant>;
 
     @belongsTo(() => User, { foreignKey: 'creatorId' })
-    public users: BelongsTo<typeof User>
+    public users: BelongsTo<typeof User>;
 
     @column({ isPrimary: true })
     public id: string;
 
     @column({ serializeAs: null })
-    public creatorId: string; 
+    public creatorId: string;
 
     @column({ serializeAs: null })
     public firstMessageId: string;

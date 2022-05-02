@@ -1,5 +1,5 @@
 import Factory from '@ioc:Adonis/Lucid/Factory';
-import { cuid } from '@ioc:Adonis/Core/Helpers'
+import { cuid } from '@ioc:Adonis/Core/Helpers';
 import crypto from 'crypto';
 import User from 'App/Models/User';
 // import Conversation from 'App/Models/Conversation'

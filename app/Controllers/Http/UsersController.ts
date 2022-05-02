@@ -6,24 +6,23 @@ import ChangeDescriptionValidator from 'App/Validators/ChangeDescriptionValidato
 import ChangeUsernameValidator from 'App/Validators/ChangeUsernameValidator';
 
 export default class UsersController {
-
     public async AccountInformations({ request, response, auth }: HttpContextContract): Promise<void> {
-        const { userId } = request.qs()
+        const { userId } = request.qs();
 
         if (userId === undefined) {
-            const user = auth.user!.serialize()
+            const user = auth.user!.serialize();
 
-            return response.ok({ status: "Ok", data: user })
-        } else{
-            const user = await User.findOrFail(userId)
+            return response.ok({ status: 'Ok', data: user });
+        } else {
+            const user = await User.findOrFail(userId);
 
             const payload = user.serialize({
                 fields: {
-                    omit: ['email']
-                }
-            })
+                    omit: ['email'],
+                },
+            });
 
-            return response.ok({ status: "Ok", data: payload })
+            return response.ok({ status: 'Ok', data: payload });
         }
     }
 

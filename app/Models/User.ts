@@ -18,7 +18,7 @@ export default class User extends BaseModel {
     public messages: HasMany<typeof Message>;
 
     @hasMany(() => Conversation, { foreignKey: 'creatorId' })
-    public conversations: HasMany<typeof Conversation>
+    public conversations: HasMany<typeof Conversation>;
 
     @column({ isPrimary: true })
     public id: string;
