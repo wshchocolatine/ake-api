@@ -1,4 +1,5 @@
 import { HttpContextContract } from '@ioc:Adonis/Core/HttpContext';
+import { cuid } from '@ioc:Adonis/Core/Helpers'
 import Database from '@ioc:Adonis/Lucid/Database';
 import crypto from 'crypto';
 import CryptoJS from 'crypto-js';
@@ -49,7 +50,7 @@ export default class AuthController {
          */
 
         const payload = {
-            id: parseInt(String(Math.floor(Math.random() * Date.now())).slice(0, 10)),
+            id: cuid(),
             username: username,
             tag: tag,
             email: email,

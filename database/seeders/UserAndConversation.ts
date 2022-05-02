@@ -4,6 +4,7 @@ import { UserFactory } from 'Database/factories';
 import crypto from 'crypto';
 import Conversation from 'App/Models/Conversation';
 import Message from 'App/Models/Message';
+import MessageStatus from 'App/Models/MessageStatus';
 import Key from 'App/Models/Key';
 import Participant from 'App/Models/Participant';
 import User from 'App/Models/User';
@@ -35,8 +36,8 @@ export default class UserAndConversationSeeder extends BaseSeeder {
          * Creating conversations between "louis" and "marin" users
          */
 
-        const louisUser = await User.findByOrFail('id', 1);
-        const marinUser = await User.findByOrFail('id', 2);
+        const louisUser = await User.findByOrFail('email', 'louis@ake-app.com');
+        const marinUser = await User.findByOrFail('email', 'marin@ake-app.com');
 
         const message = 'First message of the first conversation';
 
@@ -44,8 +45,8 @@ export default class UserAndConversationSeeder extends BaseSeeder {
         const iv = crypto.randomBytes(16);
 
         const cipher = crypto.createCipheriv('aes-192-ctr', key, iv);
-        let encrypted_msg = cipher.update(message, 'utf-8', 'hex');
-        encrypted_msg += cipher.final('hex');
+        let encryptedMsg = cipher.update(message, 'utf-8', 'hex');
+        encryptedMsg += cipher.final('hex');
 
         const louisPublicKey = louisUser.publicKey;
         const marinPublicKey = marinUser.publicKey;
@@ -53,36 +54,33 @@ export default class UserAndConversationSeeder extends BaseSeeder {
         const louisEncryptedKey = crypto.publicEncrypt(Buffer.from(louisPublicKey), Buffer.from(key));
         const marinEncrypedKey = crypto.publicEncrypt(Buffer.from(marinPublicKey), Buffer.from(key));
 
-        const msgId = 1;
-        const conversationId = 1;
+        const msgId = 'a';
+        const conversationId = 'a';
 
         const convPayload = {
             id: conversationId,
-            last_msg_content: encrypted_msg,
-            last_msg_author: louisUser.id,
-            last_msg_read: false,
-            last_msg_id: msgId,
+            creatorId: louisUser.id, 
+            firstMessageId: msgId
         };
 
         const msgPayload = {
             id: msgId,
-            author: louisUser.id,
-            conversation_id: conversationId,
-            content: encrypted_msg,
-            read: false,
+            authorId: louisUser.id,
+            conversationId: conversationId,
+            content: encryptedMsg,
         };
 
         const keyPayload = [
             {
-                conversation_id: conversationId,
-                owner_id: louisUser.id,
-                key_encrypted: louisEncryptedKey.toString('base64'),
+                conversationId: conversationId,
+                ownerId: louisUser.id,
+                keyEncrypted: louisEncryptedKey.toString('base64'),
                 iv: iv.toString('hex'),
             },
             {
-                conversation_id: conversationId,
-                owner_id: marinUser.id,
-                key_encrypted: marinEncrypedKey.toString('base64'),
+                conversationId: conversationId,
+                ownerId: marinUser.id,
+                keyEncrypted: marinEncrypedKey.toString('base64'),
                 iv: iv.toString('hex'),
             },
         ];
@@ -98,11 +96,23 @@ export default class UserAndConversationSeeder extends BaseSeeder {
             },
         ];
 
+        const messageStatutesPayload = [
+            {
+                userId: louisUser.id, 
+                read: true
+            }, 
+            {
+                userId: marinUser.id, 
+                read: false
+            }
+        ]
+
         const trx = await Database.transaction();
         try {
             await Conversation.create(convPayload, { client: trx });
             await Participant.createMany(participantPayload, { client: trx });
-            await Message.create(msgPayload, { client: trx });
+            await (await Message.create(msgPayload, { client: trx })).related('messageStatuses').createMany(messageStatutesPayload)
+            // await MessageStatus.createMany(messageStatutesPayload, { client: trx})
             await Key.createMany(keyPayload, { client: trx });
 
             await trx.commit();

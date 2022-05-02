@@ -40,8 +40,8 @@ export default class ConversationsController {
          *  Creating id for conversation and message
          */
 
-        const convId = parseInt(String(Math.floor(Math.random() * Date.now())).slice(0, 10));
-        const msgId = parseInt(String(Math.floor(Math.random() * Date.now())).slice(0, 10));
+        const convId = cuid()
+        const msgId = cuid()
 
         /**
          *  Ciphering the message with creating key and iv for aes-192-cbc
@@ -51,8 +51,8 @@ export default class ConversationsController {
         const iv = crypto.randomBytes(16);
 
         const cipher = crypto.createCipheriv('aes-192-ctr', key, iv);
-        let encrypted_msg = cipher.update(content, 'utf-8', 'hex');
-        encrypted_msg += cipher.final('hex');
+        let encryptedMsg = cipher.update(content, 'utf-8', 'hex');
+        encryptedMsg += cipher.final('hex');
 
         /**
          *  We create an array for all participants of the conversation.
@@ -91,12 +91,12 @@ export default class ConversationsController {
                 }
             }
 
-            return { user_id: participantId, conversation_id: convId };
+            return { userId: participantId, conversationId: convId };
         });
         const participantsPayload = await Promise.all(participantsPayloadPromise);
         participantsPayload.push({
-            user_id: connectedUser.id,
-            conversation_id: convId,
+            userId: connectedUser.id,
+            conversationId: convId,
         }); //Pushing into the array the user who created the conversation
 
         /**
@@ -115,9 +115,9 @@ export default class ConversationsController {
             const keyEncrypted = crypto.publicEncrypt(Buffer.from(participantPublicKey), Buffer.from(key));
 
             return {
-                conversation_id: convId,
-                owner_id: participantId,
-                key_encrypted: keyEncrypted.toString('base64'),
+                conversationId: convId,
+                ownerId: participantId,
+                keyEncrypted: keyEncrypted.toString('base64'),
                 iv: iv.toString('hex'),
             };
         });
@@ -127,11 +127,34 @@ export default class ConversationsController {
             Buffer.from(key)
         );
         keysPayload.push({
-            conversation_id: convId,
-            owner_id: connectedUser.id,
-            key_encrypted: connectedUserEncryptedKey.toString('base64'),
+            conversationId: convId,
+            ownerId: connectedUser.id,
+            keyEncrypted: connectedUserEncryptedKey.toString('base64'),
             iv: iv.toString('hex'),
         }); // Pushing into the array the user who created the conversation
+
+        /**
+         * We create an array for message's status of each participant
+         */
+
+        const messageStatutesPayloadPromise = participantsWithoutCreatorObject.map(async (element) => {
+            const participant = await User.query()
+                .where('username', element.username)
+                .andWhere('tag', element.tag)
+                .select('id')
+
+            const participantId = participant[0].id
+
+            return {
+                userId: participantId, 
+                read: false
+            }
+        })
+        const messageStatutesPayload = await Promise.all(messageStatutesPayloadPromise)
+        messageStatutesPayload.push({
+            userId: connectedUser.id, 
+            read: true
+        }) //Puhsing into the array the creator
 
         /**
          *  Preparing conversation and message payloads.
@@ -139,18 +162,15 @@ export default class ConversationsController {
 
         const convPayload = {
             id: convId,
-            last_msg_content: encrypted_msg,
-            last_msg_author: connectedUser.id,
-            last_msg_read: false,
-            last_msg_id: msgId,
+            creatorId: connectedUser.id, 
+            firstMessageId: msgId
         };
 
         const msgPayload = {
             id: msgId,
-            author: connectedUser.id,
-            conversation_id: convId,
-            content: encrypted_msg,
-            read: false,
+            authorId: connectedUser.id,
+            conversationId: convId,
+            content: encryptedMsg,
         };
 
         /**
@@ -160,13 +180,14 @@ export default class ConversationsController {
         const trx = await Database.transaction();
         try {
             await Conversation.create(convPayload, { client: trx });
-            await Message.create(msgPayload, { client: trx });
+            await (await Message.create(msgPayload, { client: trx })).related('messageStatuses').createMany(messageStatutesPayload);
             await Key.createMany(keysPayload, { client: trx });
             //@ts-ignore
             await Participant.createMany(participantsPayload, { client: trx });
             await trx.commit();
         } catch (e) {
             await trx.rollback();
+            console.log(e)
             return response.internalServerError({
                 status: 'Internal Server Error',
                 errors: { message: 'Error at transaction' },

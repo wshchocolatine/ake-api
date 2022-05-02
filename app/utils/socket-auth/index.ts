@@ -38,7 +38,7 @@ class SocketAuth {
      *
      **/
 
-    public async loginToken(userId: number, expiresIn: string) {
+    public async loginToken(userId: string, expiresIn: string) {
         const { token, tokenHash, expiresAt } = this.generateToken(expiresIn);
         if (!expiresAt) {
             return null;

@@ -17,7 +17,10 @@ export default class MessageStatus extends BaseModel {
     public userId: string; 
 
     @column()
-    public conversationId: string; 
+    public messageId: string
+
+    @column()
+    public read: boolean
 
     @column.dateTime({ autoCreate: true })
     public createdAt: DateTime; 

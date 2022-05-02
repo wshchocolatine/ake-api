@@ -1,4 +1,5 @@
 import Factory from '@ioc:Adonis/Lucid/Factory';
+import { cuid } from '@ioc:Adonis/Core/Helpers'
 import crypto from 'crypto';
 import User from 'App/Models/User';
 // import Conversation from 'App/Models/Conversation'
@@ -15,6 +16,7 @@ export const UserFactory = Factory.define(User, ({ faker }) => {
     });
 
     return {
+        id: cuid(),
         username: faker.internet.userName(),
         tag: faker.datatype.number(1000),
         email: faker.internet.email(),

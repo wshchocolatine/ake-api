@@ -6,7 +6,7 @@ export class OpaqueToken {
 
     public expiresAt: DateTime;
 
-    constructor(public token: string, public tokenId: string, public userId: number) {}
+    constructor(public token: string, public tokenId: string, public userId: string) {}
 
     public toJSON() {
         return {
@@ -19,5 +19,5 @@ export class OpaqueToken {
 export class ProviderToken {
     public expiresAt: DateTime;
 
-    constructor(public tokenHash: string, public userId: number) {}
+    constructor(public tokenHash: string, public userId: string) {}
 }
