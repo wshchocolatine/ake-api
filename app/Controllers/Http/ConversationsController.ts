@@ -219,7 +219,7 @@ export default class ConversationsController {
          * Getting data from the request and get private key
          */
 
-        const userId = auth.user!.id;
+        const connectedUserId = auth.user!.id;
         const { offset } = request.qs();
         const offsetInt = parseInt(offset);
 
@@ -261,8 +261,8 @@ export default class ConversationsController {
          */
 
         const userConversations = await Conversation.query()
-            .preload('participants', (subquery) => subquery.select('user_id').whereNot('user_id', userId))
-            .whereHas('participants', (subquery) => subquery.where('user_id', userId))
+            .preload('participants', (subquery) => subquery.select('user_id').whereNot('user_id', connectedUserId))
+            .whereHas('participants', (subquery) => subquery.where('user_id', connectedUserId))
             .orderBy('updated_at', 'desc')
             .offset(offset)
             .limit(12);
@@ -285,7 +285,7 @@ export default class ConversationsController {
                 await Message.query()
                     .where('conversation_id', element.id)
                     .preload('messageStatuses', (subquery) =>
-                        subquery.select('read').where('user_id', userId)
+                        subquery.select('read').where('user_id', connectedUserId)
                     )
                     .select('id', 'content', 'author_id', 'created_at')
                     .orderBy('created_at', 'desc')
@@ -296,7 +296,7 @@ export default class ConversationsController {
             const { keyEncrypted, iv } = (
                 await Key.query()
                     .where('conversation_id', convId)
-                    .andWhere('owner_id', userId)
+                    .andWhere('owner_id', connectedUserId)
                     .select('key_encrypted', 'iv')
             )[0];
             const keyAES = crypto.privateDecrypt(
@@ -360,7 +360,7 @@ export default class ConversationsController {
 
         const { query, offset } = request.qs();
         const offsetInt = parseInt(offset);
-        const userId = auth.user!.id;
+        const connectedUserId = auth.user!.id;
 
         if (query === undefined || isNaN(offsetInt)) {
             return response.badRequest({
@@ -394,7 +394,7 @@ export default class ConversationsController {
         }
 
         const userConversationsId = await Conversation.query().whereHas('participants', (subQuery) => {
-            subQuery.where('userId', userId);
+            subQuery.where('user_id', connectedUserId);
         });
 
         /**
@@ -404,7 +404,7 @@ export default class ConversationsController {
         const dataPromise = userConversationsId.map(async (element) => {
             const conversationsWithoutLastMessages = await Participant.query()
                 .where('conversation_id', element.id)
-                .andWhereNot('user_id', userId)
+                .andWhereNot('user_id', connectedUserId)
                 .whereHas('users', (subQuery) => subQuery.where('username', 'like', `${query}%`))
                 .preload('conversations', (query) => query.orderBy('updated_at', 'desc'))
                 .offset(offsetInt)
@@ -440,7 +440,7 @@ export default class ConversationsController {
                     await Message.query()
                         .where('conversation_id', convId)
                         .preload('messageStatuses', (subquery) =>
-                            subquery.select('read').where('user_id', userId)
+                            subquery.select('read').where('user_id', connectedUserId)
                         )
                         .select('id', 'content', 'author_id', 'created_at')
                         .orderBy('created_at', 'desc')
@@ -451,7 +451,7 @@ export default class ConversationsController {
                 const { keyEncrypted, iv } = (
                     await Key.query()
                         .where('conversation_id', convId)
-                        .andWhere('owner_id', userId)
+                        .andWhere('owner_id', connectedUserId)
                         .select('key_encrypted', 'iv')
                 )[0];
                 const key_AES = crypto.privateDecrypt(

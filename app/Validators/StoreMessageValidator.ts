@@ -24,7 +24,7 @@ export default class StoreMessageValidator {
      *    ```
      */
     public schema = schema.create({
-        convId: schema.number([rules.required(), rules.exists({ table: 'conversations', column: 'id' })]),
+        convId: schema.string([rules.required(), rules.exists({ table: 'conversations', column: 'id' })]),
         content: schema.string([rules.required()]),
     });
 
