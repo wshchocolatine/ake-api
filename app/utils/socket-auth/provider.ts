@@ -33,7 +33,7 @@ export class TokenProvider {
         return tokenId;
     }
 
-    public async readToken(userId: number, tokenId: string, tokenCheckHash: string): Promise<any> {
+    public async readToken(userId: number, tokenId: string, tokenCheckHash: string): Promise<null | string> {
         const tokenObject = this.parseToken(await Redis.get('sockets:' + tokenId + userId.toString()));
         if (!tokenObject) {
             return null;

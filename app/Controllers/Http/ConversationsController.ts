@@ -12,11 +12,11 @@ import Redis from '@ioc:Adonis/Addons/Redis';
 
 export default class ConversationsController {
     /**
-     *  NEW CONVERSATION
+     * NEW CONVERSATION
      *
-     *  Create a new conversation with an user
+     * Create a new conversation with an user
      *
-     *  @route POST /conversations/new
+     * @route POST /conversations/new
      */
 
     public async New({ response, request, auth }: HttpContextContract): Promise<void> {
@@ -72,7 +72,9 @@ export default class ConversationsController {
                 if (participant.length === 0) {
                     return response.badRequest({
                         status: 'Bad Request',
-                        errors: `The user ${element.username}#${element.tag} doesn't exist`,
+                        errors: {
+                            message: `The user ${element.username}#${element.tag} doesn't exist`
+                        }
                     });
                 }
                 const participantId = participant[0].id;
@@ -92,7 +94,6 @@ export default class ConversationsController {
                         );
 
                     if (conversationExists.length >= 1) {
-                        console.log('oi');
                         return response.conflict({
                             status: 'Conflict',
                             errors: {

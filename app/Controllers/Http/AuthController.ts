@@ -1,6 +1,5 @@
 import { HttpContextContract } from '@ioc:Adonis/Core/HttpContext';
 import { cuid } from '@ioc:Adonis/Core/Helpers';
-import Database from '@ioc:Adonis/Lucid/Database';
 import crypto from 'crypto';
 import CryptoJS from 'crypto-js';
 import User from 'App/Models/User';
@@ -31,7 +30,7 @@ export default class AuthController {
 
         async function generateTag(): Promise<number> {
             const id = Math.floor(Math.random() * 10000);
-            if ((await Database.from('users').where('username', username).andWhere('tag', id)).length >= 1) {
+            if ((await User.query().where('username', username).andWhere('tag', id)).length >= 1) {
                 return await generateTag();
             }
             return id;

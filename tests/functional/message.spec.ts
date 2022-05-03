@@ -35,10 +35,7 @@ test.group('Messages', () => {
             .form(payload)
             .session({ key: privateKey })
             .loginAs(louisUser);
-
-        console.log(response);
-        console.log(response.body());
-
+            
         response.assertStatus(201);
     });
 

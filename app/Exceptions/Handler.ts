@@ -16,7 +16,7 @@
 import Logger from '@ioc:Adonis/Core/Logger';
 import { HttpContextContract } from '@ioc:Adonis/Core/HttpContext';
 import HttpExceptionHandler from '@ioc:Adonis/Core/HttpExceptionHandler';
-const status = require('http-status');
+import { getReasonPhrase } from 'http-status-codes';
 
 export default class ExceptionHandler extends HttpExceptionHandler {
     constructor() {
@@ -29,7 +29,7 @@ export default class ExceptionHandler extends HttpExceptionHandler {
             const messageError = error.messages.errors[0].message.split(':')[1];
             error.messages.errors[0].message = messageError;
             return ctx.response.status(statusNumber).json({
-                status: status[statusNumber],
+                status: getReasonPhrase(statusNumber),
                 errors: error.messages.errors[0],
             });
         }
@@ -37,7 +37,9 @@ export default class ExceptionHandler extends HttpExceptionHandler {
         if (error.code === 'E_INVALID_AUTH_PASSWORD' || error.code === 'E_INVALID_AUTH_UID') {
             return ctx.response.status(401).json({
                 status: 'Unauthorized',
-                errors: 'Bad credentials',
+                errors: {
+                    message: 'Bad credentials'
+                },
             });
         }
 
