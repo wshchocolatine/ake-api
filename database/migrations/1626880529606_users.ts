@@ -9,7 +9,7 @@ export default class Users extends BaseSchema {
             table.string('id', 50).primary();
             table.string('username', 25).notNullable();
             table.integer('tag', 4).unsigned().notNullable();
-            table.string('email', 320).notNullable();
+            table.string('email', 320).unique().notNullable();
             table.string('description');
             //Private Info
             table.text('password').notNullable();

@@ -3,6 +3,7 @@ import User from 'App/Models/User';
 import Conversation from 'App/Models/Conversation';
 import faker from '@faker-js/faker';
 import CryptoJS from 'crypto-js';
+import Message from 'App/Models/Message';
 
 /**
  * Testing everything about messages routes
@@ -14,18 +15,18 @@ test.group('Messages', () => {
         const marinUser = await User.findByOrFail('email', 'marin@ake-app.com');
         const louisUser = await User.findByOrFail('email', 'louis@ake-app.com');
 
-        const privateKeyEncrypted = (await User.findByOrFail('email', 'marin@ake-app.com')).privateKey;
+        const privateKeyEncrypted = (await User.findByOrFail('email', 'louis@ake-app.com')).privateKey;
         const password = 'secret';
         const privateKey = CryptoJS.enc.Utf8.stringify(CryptoJS.AES.decrypt(privateKeyEncrypted, password));
 
-        const user_conversations = await Conversation.query()
+        const userConversations = await Conversation.query()
             .whereHas('participants', (subquery) => subquery.where('user_id', marinUser.id))
             .andWhereHas('participants', (subquery) => subquery.where('user_id', louisUser.id))
             .orderBy('updated_at', 'desc')
             .limit(1);
 
         const payload = {
-            convId: user_conversations[0].id,
+            convId: userConversations[0].id,
             content: faker.lorem.paragraph(),
         };
 
@@ -33,7 +34,10 @@ test.group('Messages', () => {
             .post('/message/send')
             .form(payload)
             .session({ key: privateKey })
-            .loginAs(marinUser);
+            .loginAs(louisUser);
+
+        console.log(response);
+        console.log(response.body());
 
         response.assertStatus(201);
     });
@@ -58,5 +62,22 @@ test.group('Messages', () => {
             .loginAs(marinUser);
 
         response.assertStatus(200);
+    });
+
+    test('Read message', async ({ client }) => {
+        const marinUser = await User.findByOrFail('email', 'marin@ake-app.com');
+        const louisUser = await User.findByOrFail('email', 'louis@ake-app.com');
+
+        const userConversations = await Conversation.query()
+            .whereHas('participants', (subquery) => subquery.where('user_id', marinUser.id))
+            .andWhereHas('participants', (subquery) => subquery.where('user_id', louisUser.id))
+            .orderBy('updated_at', 'desc')
+            .limit(1);
+
+        const msg = await Message.query().where('conversation_id', userConversations[0].id).select('id');
+
+        const response = await client.get('/message/read?msgId=' + msg[0].id).loginAs(marinUser);
+
+        response.assertStatus(201);
     });
 });

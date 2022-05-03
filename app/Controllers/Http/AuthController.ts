@@ -10,13 +10,12 @@ import { socketAuth } from '../../utils/socket-auth/index';
 
 export default class AuthController {
     /**
-     *  REGISTER
+     * REGISTER
      *
-     *  Create an account on Ake.
-     *  It doesn't create an account in database but allows you to start the second step of the register process.
+     * Create an account on Ake.
+     * It doesn't create an account in database but allows you to start the second step of the register process.
      *
-     *  @route POST  /register
-     *
+     * @route POST  /register
      */
 
     public async Register({ response, request, session, auth }: HttpContextContract): Promise<void> {

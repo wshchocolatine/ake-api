@@ -24,179 +24,200 @@ export default class ConversationsController {
          * Getting data and validating it
          */
 
-        const { participantsWithoutCreator, content } = await request.validate(StoreNewConversationValidator);
-        const participantsWithoutCreatorObject = participantsWithoutCreator.map((element) => {
-            const splitStringArray = element.split('#');
-            return {
-                username: splitStringArray[0],
-                tag: splitStringArray[1],
-            };
-        });
+        try {
+            const { participantsWithoutCreator, content } = await request.validate(
+                StoreNewConversationValidator
+            );
+            const participantsWithoutCreatorObject = participantsWithoutCreator.map((element) => {
+                const splitStringArray = element.split('#');
+                return {
+                    username: splitStringArray[0],
+                    tag: splitStringArray[1],
+                };
+            });
 
-        const connectedUser = auth.user!;
-
-        /**
-         *  Creating id for conversation and message
-         */
-
-        const convId = cuid();
-        const msgId = cuid();
-
-        /**
-         *  Ciphering the message with creating key and iv for aes-192-cbc
-         */
-
-        const key = crypto.randomBytes(24);
-        const iv = crypto.randomBytes(16);
-
-        const cipher = crypto.createCipheriv('aes-192-ctr', key, iv);
-        let encryptedMsg = cipher.update(content, 'utf-8', 'hex');
-        encryptedMsg += cipher.final('hex');
-
-        /**
-         *  We create an array for all participants of the conversation.
-         */
-
-        const participantsPayloadPromise = participantsWithoutCreatorObject.map(async (element) => {
-            const participant = await User.query()
-                .where('username', element.username)
-                .andWhere('tag', element.tag)
-                .select('id');
+            const connectedUser = auth.user!;
 
             /**
-             *  We check if the participants are existing
+             *  Creating id for conversation and message
              */
-            if (participant.length === 0) {
-                return response.badRequest({
-                    status: 'Bad Request',
-                    errors: `The user ${element.username}#${element.tag} doesn't exist`,
-                });
-            }
-            const participantId = participant[0].id;
+
+            const convId = cuid();
+            const msgId = cuid();
 
             /**
-             *  If it's a 1:1 conversation, we check if that a conversations already exists (if so, we return an error)
+             *  Ciphering the message with creating key and iv for aes-192-cbc
              */
-            if (participantsWithoutCreatorObject.length === 1) {
-                const conversation_exists = await Conversation.query()
-                    .whereHas('participants', (subquery) => subquery.where('user_id', auth.user!.id))
-                    .andWhereHas('participants', (subquery) => subquery.where('user_id', participantId));
 
-                if (conversation_exists.length >= 1) {
-                    return response.conflict({
-                        status: 'Conflict',
-                        errors: 'There is already a conversation between these users',
+            const key = crypto.randomBytes(24);
+            const iv = crypto.randomBytes(16);
+
+            const cipher = crypto.createCipheriv('aes-192-ctr', key, iv);
+            let encryptedMsg = cipher.update(content, 'utf-8', 'hex');
+            encryptedMsg += cipher.final('hex');
+
+            /**
+             *  We create an array for all participants of the conversation.
+             */
+
+            const participantsPayloadPromise = participantsWithoutCreatorObject.map(async (element) => {
+                const participant = await User.query()
+                    .where('username', element.username)
+                    .andWhere('tag', element.tag)
+                    .select('id');
+
+                /**
+                 *  We check if the participants are existing
+                 */
+                if (participant.length === 0) {
+                    return response.badRequest({
+                        status: 'Bad Request',
+                        errors: `The user ${element.username}#${element.tag} doesn't exist`,
                     });
                 }
-            }
+                const participantId = participant[0].id;
 
-            return { userId: participantId, conversationId: convId };
-        });
-        const participantsPayload = await Promise.all(participantsPayloadPromise);
-        participantsPayload.push({
-            userId: connectedUser.id,
-            conversationId: convId,
-        }); //Pushing into the array the user who created the conversation
+                /**
+                 *  If it's a 1:1 conversation, we check if that a conversations already exists (if so, we return an error)
+                 */
+                if (participantsWithoutCreatorObject.length === 1) {
+                    const conversationExists = await Conversation.query()
+                        .whereHas('participants', (subquery) => subquery.where('user_id', connectedUser.id))
+                        .andWhereHas('participants', (subquery) => subquery.where('user_id', participantId))
+                        .andWhereHas('participants', (subquery) =>
+                            subquery
+                                .select('conversation_id')
+                                .groupBy('conversation_id')
+                                .havingRaw('count(*) <= 2')
+                        );
 
-        /**
-         *  We create an array for keys of each participants.
-         *  Keys are beeing ciphered by the public key of each participants so they are not the same in db.
-         */
+                    if (conversationExists.length >= 1) {
+                        console.log('oi');
+                        return response.conflict({
+                            status: 'Conflict',
+                            errors: {
+                                message: 'There is already a conversation between these users',
+                            },
+                        });
+                    }
+                }
 
-        const keysPayloadPromise = participantsWithoutCreatorObject.map(async (element) => {
-            const participant = await User.query()
-                .where('username', element.username)
-                .andWhere('tag', element.tag)
-                .select('public_key', 'id');
-            const participantPublicKey = participant[0].publicKey;
-            const participantId = participant[0].id;
-
-            const keyEncrypted = crypto.publicEncrypt(Buffer.from(participantPublicKey), Buffer.from(key));
-
-            return {
-                conversationId: convId,
-                ownerId: participantId,
-                keyEncrypted: keyEncrypted.toString('base64'),
-                iv: iv.toString('hex'),
-            };
-        });
-        const keysPayload = await Promise.all(keysPayloadPromise);
-        const connectedUserEncryptedKey = crypto.publicEncrypt(
-            Buffer.from(connectedUser.publicKey),
-            Buffer.from(key)
-        );
-        keysPayload.push({
-            conversationId: convId,
-            ownerId: connectedUser.id,
-            keyEncrypted: connectedUserEncryptedKey.toString('base64'),
-            iv: iv.toString('hex'),
-        }); // Pushing into the array the user who created the conversation
-
-        /**
-         * We create an array for message's status of each participant
-         */
-
-        const messageStatutesPayloadPromise = participantsWithoutCreatorObject.map(async (element) => {
-            const participant = await User.query()
-                .where('username', element.username)
-                .andWhere('tag', element.tag)
-                .select('id');
-
-            const participantId = participant[0].id;
-
-            return {
-                userId: participantId,
-                read: false,
-            };
-        });
-        const messageStatutesPayload = await Promise.all(messageStatutesPayloadPromise);
-        messageStatutesPayload.push({
-            userId: connectedUser.id,
-            read: true,
-        }); //Puhsing into the array the creator
-
-        /**
-         *  Preparing conversation and message payloads.
-         */
-
-        const convPayload = {
-            id: convId,
-            creatorId: connectedUser.id,
-            firstMessageId: msgId,
-        };
-
-        const msgPayload = {
-            id: msgId,
-            authorId: connectedUser.id,
-            conversationId: convId,
-            content: encryptedMsg,
-        };
-
-        /**
-         *  Inserting data into the database
-         */
-
-        const trx = await Database.transaction();
-        try {
-            await Conversation.create(convPayload, { client: trx });
-            await (await Message.create(msgPayload, { client: trx }))
-                .related('messageStatuses')
-                .createMany(messageStatutesPayload);
-            await Key.createMany(keysPayload, { client: trx });
-            //@ts-ignore
-            await Participant.createMany(participantsPayload, { client: trx });
-            await trx.commit();
-        } catch (e) {
-            await trx.rollback();
-            console.log(e);
-            return response.internalServerError({
-                status: 'Internal Server Error',
-                errors: { message: 'Error at transaction' },
+                return {
+                    userId: participantId,
+                    conversationId: convId,
+                };
             });
-        }
+            const participantsPayload = await Promise.all(participantsPayloadPromise);
+            participantsPayload.push({
+                userId: connectedUser.id,
+                conversationId: convId,
+            }); //Pushing into the array the user who created the conversation
 
-        //Everything 😀
-        return response.created({ status: 'Created' });
+            /**
+             *  We create an array for keys of each participants.
+             *  Keys are beeing ciphered by the public key of each participants so they are not the same in db.
+             */
+
+            const keysPayloadPromise = participantsWithoutCreatorObject.map(async (element) => {
+                const participant = await User.query()
+                    .where('username', element.username)
+                    .andWhere('tag', element.tag)
+                    .select('public_key', 'id');
+                const participantPublicKey = participant[0].publicKey;
+                const participantId = participant[0].id;
+
+                const keyEncrypted = crypto.publicEncrypt(
+                    Buffer.from(participantPublicKey),
+                    Buffer.from(key)
+                );
+
+                return {
+                    conversationId: convId,
+                    ownerId: participantId,
+                    keyEncrypted: keyEncrypted.toString('base64'),
+                    iv: iv.toString('hex'),
+                };
+            });
+            const keysPayload = await Promise.all(keysPayloadPromise);
+            const connectedUserEncryptedKey = crypto.publicEncrypt(
+                Buffer.from(connectedUser.publicKey),
+                Buffer.from(key)
+            );
+            keysPayload.push({
+                conversationId: convId,
+                ownerId: connectedUser.id,
+                keyEncrypted: connectedUserEncryptedKey.toString('base64'),
+                iv: iv.toString('hex'),
+            }); // Pushing into the array the user who created the conversation
+
+            /**
+             * We create an array for message's status of each participant
+             */
+
+            const messageStatutesPayloadPromise = participantsWithoutCreatorObject.map(async (element) => {
+                const participant = await User.query()
+                    .where('username', element.username)
+                    .andWhere('tag', element.tag)
+                    .select('id');
+
+                const participantId = participant[0].id;
+
+                return {
+                    userId: participantId,
+                    read: false,
+                };
+            });
+            const messageStatutesPayload = await Promise.all(messageStatutesPayloadPromise);
+            messageStatutesPayload.push({
+                userId: connectedUser.id,
+                read: true,
+            }); //Puhsing into the array the creator
+
+            /**
+             *  Preparing conversation and message payloads.
+             */
+
+            const convPayload = {
+                id: convId,
+                creatorId: connectedUser.id,
+                firstMessageId: msgId,
+            };
+
+            const msgPayload = {
+                id: msgId,
+                authorId: connectedUser.id,
+                conversationId: convId,
+                content: encryptedMsg,
+            };
+
+            /**
+             *  Inserting data into the database
+             */
+
+            const trx = await Database.transaction();
+            try {
+                await Conversation.create(convPayload, { client: trx });
+                await (await Message.create(msgPayload, { client: trx }))
+                    .related('messageStatuses')
+                    .createMany(messageStatutesPayload);
+                await Key.createMany(keysPayload, { client: trx });
+                //@ts-ignore
+                await Participant.createMany(participantsPayload, { client: trx });
+                await trx.commit();
+            } catch (e) {
+                await trx.rollback();
+                console.log(e);
+                return response.internalServerError({
+                    status: 'Internal Server Error',
+                    errors: { message: 'Error at transaction' },
+                });
+            }
+            //Everything 😀
+            return response.created({ status: 'Created' });
+        } catch (e) {
+            console.log(e);
+            return response.internalServerError();
+        }
     }
 
     /**
@@ -261,7 +282,9 @@ export default class ConversationsController {
          */
 
         const userConversations = await Conversation.query()
-            .preload('participants', (subquery) => subquery.select('user_id').whereNot('user_id', connectedUserId))
+            .preload('participants', (subquery) =>
+                subquery.select('user_id').whereNot('user_id', connectedUserId)
+            )
             .whereHas('participants', (subquery) => subquery.where('user_id', connectedUserId))
             .orderBy('updated_at', 'desc')
             .offset(offset)

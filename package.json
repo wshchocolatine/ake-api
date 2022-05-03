@@ -6,6 +6,7 @@
         "build": "node ace build --production",
         "start": "node server.js",
         "dev": "node ace serve --watch",
+        "lint": "eslint . --ext=.ts",
         "format": "npx prettier --write . "
     },
     "devDependencies": {

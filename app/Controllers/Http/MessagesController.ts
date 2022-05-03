@@ -58,18 +58,18 @@ export default class MessagesController {
         const participantsIds = await Participant.query()
             .whereHas('conversations', (subquery) => subquery.where('id', convId))
             .whereNot('user_id', connectedUserId)
-            .select('user_id')
+            .select('user_id');
 
         const messageStatusesPayload = participantsIds.map((element) => {
             return {
-                userId: element.userId, 
-                read: false
-            }
-        })
+                userId: element.userId,
+                read: false,
+            };
+        });
         messageStatusesPayload.push({
-            userId: connectedUserId, 
-            read: true
-        }) //Pushing into the array the user who sent the message
+            userId: connectedUserId,
+            read: true,
+        }); //Pushing into the array the user who sent the message
 
         /**
          * Getting key and iv from database and ciphering the message
@@ -93,20 +93,22 @@ export default class MessagesController {
 
         const trx = await Database.transaction();
         try {
-            const msgId = cuid()
+            const msgId = cuid();
 
             const msgPayload = {
                 id: msgId,
                 authorId: connectedUserId,
                 conversationId: convId,
                 content: encryptedMsg,
-                read: false,
             };
 
-            await(await Message.create(msgPayload, { client: trx })).related('messageStatuses').createMany(messageStatusesPayload);
+            await (await Message.create(msgPayload, { client: trx }))
+                .related('messageStatuses')
+                .createMany(messageStatusesPayload);
 
             await trx.commit();
         } catch (e) {
+            console.log(e);
             await trx.rollback();
             return response.internalServerError({
                 status: 'Internal Server Error',
@@ -140,7 +142,7 @@ export default class MessagesController {
             });
         }
 
-        const connectedUser = auth.user!
+        const connectedUser = auth.user!;
 
         /**
          * 	Getting private key, if session auth : it is in sessions cookies, if token auth : it is in the meta of the token
@@ -188,27 +190,29 @@ export default class MessagesController {
          * Deciphering messages and serializing them
          */
 
-        const messagesPromise = messagesEncrypted.map(async(element) => {
-            element.serialize()
+        const messagesPromise = messagesEncrypted.map(async (element) => {
+            element.serialize();
 
             const decipher = crypto.createDecipheriv('aes-192-ctr', keyAes, Buffer.from(iv, 'hex'));
             let decryptedMsg = decipher.update(element.content, 'hex', 'utf-8');
             decryptedMsg += decipher.final('utf-8');
 
-            const { read } = (await MessageStatus.query()
-                .where('message_id', element.id)
-                .andWhere('user_id', connectedUser.id))[0];
+            const { read } = (
+                await MessageStatus.query()
+                    .where('message_id', element.id)
+                    .andWhere('user_id', connectedUser.id)
+            )[0];
 
             return {
-                id: element.id, 
-                content: decryptedMsg, 
-                author_id: element.authorId, 
-                conversation_id: element.conversationId, 
-                read, 
-                created_at: element.createdAt
-            }
-        })
-        const messages = await Promise.all(messagesPromise)
+                id: element.id,
+                content: decryptedMsg,
+                author_id: element.authorId,
+                conversation_id: element.conversationId,
+                read,
+                created_at: element.createdAt,
+            };
+        });
+        const messages = await Promise.all(messagesPromise);
 
         return response.status(200).json({
             data: messages,
@@ -226,8 +230,8 @@ export default class MessagesController {
 
     public async Read({ request, response, auth }: HttpContextContract): Promise<void> {
         //Getting data
-        const { msgId } = request.qs()
-        const connectedUser = auth.user!
+        const { msgId } = request.qs();
+        const connectedUser = auth.user!;
 
         if (msgId === undefined) {
             return response.badRequest({
@@ -239,18 +243,18 @@ export default class MessagesController {
         //QUERYING DB
         const trx = await Database.transaction();
         try {
-            const msg = await Message.findOrFail(msgId, { client: trx })
+            const msg = await Message.findOrFail(msgId, { client: trx });
 
             await MessageStatus.query({ client: trx })
                 .andWhereHas('messages', (subquery) => subquery.where('conversation_id', msg.conversationId))
                 .andWhere('user_id', connectedUser.id)
                 .andWhere('created_at', '<=', String(msg.createdAt))
                 .andWhere('read', false)
-                .update({ read: true })
+                .update({ read: true });
 
             await trx.commit();
         } catch (e) {
-            console.log(e)
+            console.log(e);
             await trx.rollback();
             return response.internalServerError({
                 status: 'Internal Server Error',
