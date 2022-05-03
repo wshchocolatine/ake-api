@@ -1,30 +1,31 @@
-import { DateTime } from 'luxon'
-import { BaseModel, BelongsTo, belongsTo, column } from '@ioc:Adonis/Lucid/Orm'
-import Conversation from './Conversation'
-import User from './User'
+import { DateTime } from 'luxon';
+import { BaseModel, BelongsTo, belongsTo, column, HasMany, hasMany } from '@ioc:Adonis/Lucid/Orm';
+import Conversation from './Conversation';
+import User from './User';
+import MessageStatus from './MessageStatus';
 
 export default class Message extends BaseModel {
-  @belongsTo(() => Conversation, { foreignKey: 'conversation_id' })
-  public conversations: BelongsTo<typeof Conversation>
+    @hasMany(() => MessageStatus, { foreignKey: 'messageId' })
+    public messageStatuses: HasMany<typeof MessageStatus>;
 
-  @belongsTo(() => User, { foreignKey: 'author' })
-  public users: BelongsTo<typeof User>
+    @belongsTo(() => Conversation, { foreignKey: 'conversationId' })
+    public conversations: BelongsTo<typeof Conversation>;
 
-  @column({ isPrimary: true })
-  public id: number
+    @belongsTo(() => User, { foreignKey: 'author' })
+    public users: BelongsTo<typeof User>;
 
-  @column()
-  public author: number
+    @column({ isPrimary: true })
+    public id: string;
 
-  @column()
-  public conversation_id: number
+    @column()
+    public authorId: string;
 
-  @column()
-  public content: string
+    @column()
+    public conversationId: string;
 
-  @column()
-  public read: boolean
+    @column()
+    public content: string;
 
-  @column.dateTime({ autoCreate: true })
-  public createdAt: DateTime
+    @column.dateTime({ autoCreate: true })
+    public createdAt: DateTime;
 }

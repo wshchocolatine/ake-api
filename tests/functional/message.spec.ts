@@ -1,47 +1,80 @@
-// import { test } from '@japa/runner'
-// import User from 'App/Models/User'
-// import Conversation from 'App/Models/Conversation'
-// import faker from '@faker-js/faker'
+import { test } from '@japa/runner';
+import User from 'App/Models/User';
+import Conversation from 'App/Models/Conversation';
+import faker from '@faker-js/faker';
+import CryptoJS from 'crypto-js';
+import Message from 'App/Models/Message';
 
 /**
- * These routes can't be test because we need private key in session
+ * Testing everything about messages routes
+ * Marin and Louis user and their conversations with their messages have been created in seeds (/database/seeders/UserAndConversation.ts)
  */
 
-// test.group('Messages', () => {
-//   test('Send', async ({ client }) => {
-//     let user = await User.findByOrFail('email', 'marin@ake-app.com')
+test.group('Messages', () => {
+    test('Send Message', async ({ client }) => {
+        const marinUser = await User.findByOrFail('email', 'marin@ake-app.com');
+        const louisUser = await User.findByOrFail('email', 'louis@ake-app.com');
 
-//     let user_conversations = await Conversation.query()
-//       .preload('participants', (subquery) => subquery.select('user_id').whereNot('user_id', user.id))
-//       .whereHas('participants', (subquery) => subquery.where('user_id', user.id))
-//       .orderBy('updated_at', 'desc')
-//       .limit(1)
-    
-//     let payload = {
-//       conv_id: user_conversations[0].id, 
-//       content: faker.lorem.paragraph()
-//     }
+        const privateKeyEncrypted = (await User.findByOrFail('email', 'louis@ake-app.com')).privateKey;
+        const password = 'secret';
+        const privateKey = CryptoJS.enc.Utf8.stringify(CryptoJS.AES.decrypt(privateKeyEncrypted, password));
 
-//     let response = await client.post('/message/send').form(payload).loginAs(user)
+        const userConversations = await Conversation.query()
+            .whereHas('participants', (subquery) => subquery.where('user_id', marinUser.id))
+            .andWhereHas('participants', (subquery) => subquery.where('user_id', louisUser.id))
+            .orderBy('updated_at', 'desc')
+            .limit(1);
 
-//     response.assertStatus(201)
-//   })
+        const payload = {
+            convId: userConversations[0].id,
+            content: faker.lorem.paragraph(),
+        };
 
-//   test('Get', async ({ client }) => {
-//     let user = await User.findByOrFail('email', 'marin@ake-app.com')
-    
-//     let user_conversations = await Conversation.query()
-//       .preload('participants', (subquery) => subquery.select('user_id').whereNot('user_id', user.id))
-//       .whereHas('participants', (subquery) => subquery.where('user_id', user.id))
-//       .orderBy('updated_at', 'desc')
-//       .limit(1)
+        const response = await client
+            .post('/message/send')
+            .form(payload)
+            .session({ key: privateKey })
+            .loginAs(louisUser);
+            
+        response.assertStatus(201);
+    });
 
-//     let response = await client.get('/message/get?conv_id=' + user_conversations[0].id + '&offset=0').loginAs(user)
+    test('Get Message', async ({ client }) => {
+        const marinUser = await User.findByOrFail('email', 'marin@ake-app.com');
+        const louisUser = await User.findByOrFail('email', 'louis@ake-app.com');
 
-//     response.assertStatus(200)
-//     response.assertBodyContains({
-//       data: {}, 
-//       status: 'ok'
-//     })
-//   })
-// })
+        const userConversations = await Conversation.query()
+            .whereHas('participants', (subquery) => subquery.where('user_id', marinUser.id))
+            .andWhereHas('participants', (subquery) => subquery.where('user_id', louisUser.id))
+            .orderBy('updated_at', 'desc')
+            .limit(1);
+
+        const privateKeyEncrypted = (await User.findByOrFail('email', 'marin@ake-app.com')).privateKey;
+        const password = 'secret';
+        const privateKey = CryptoJS.enc.Utf8.stringify(CryptoJS.AES.decrypt(privateKeyEncrypted, password));
+
+        const response = await client
+            .get('/message/get?convId=' + userConversations[0].id + '&offset=0')
+            .session({ key: privateKey })
+            .loginAs(marinUser);
+
+        response.assertStatus(200);
+    });
+
+    test('Read message', async ({ client }) => {
+        const marinUser = await User.findByOrFail('email', 'marin@ake-app.com');
+        const louisUser = await User.findByOrFail('email', 'louis@ake-app.com');
+
+        const userConversations = await Conversation.query()
+            .whereHas('participants', (subquery) => subquery.where('user_id', marinUser.id))
+            .andWhereHas('participants', (subquery) => subquery.where('user_id', louisUser.id))
+            .orderBy('updated_at', 'desc')
+            .limit(1);
+
+        const msg = await Message.query().where('conversation_id', userConversations[0].id).select('id');
+
+        const response = await client.get('/message/read?msgId=' + msg[0].id).loginAs(marinUser);
+
+        response.assertStatus(201);
+    });
+});
