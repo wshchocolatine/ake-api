@@ -20,12 +20,13 @@ The front-end part of Ake has not yet been coded. So we strongly encourage you t
 
 For documentating our Api, we are using two applications.
 
--   Notion : every informations is here, it's like a wiki. Home is [here](https://lead-harmony-d7b.notion.site/Ake-Public-5af866c71d63417684165348f3648ada), documentation about routes [here](https://lead-harmony-d7b.notion.site/Routes-29e68974864a4f178a587eac4d677854) and about authentication process [here](https://lead-harmony-d7b.notion.site/Authentication-342ef233a86f47b39984e44ef1386374).
--   Potsman is also useful for making requests directely, check [here](https://app.getpostman.com/run-collection/14271414-f3ccc73b-ed8b-473e-a253-0179d5705fcc?action=collection%2Ffork&collection-url=entityId%3D14271414-f3ccc73b-ed8b-473e-a253-0179d5705fcc%26entityType%3Dcollection%26workspaceId%3D88b58dc1-5d9a-4971-8088-89de8d2bd353) for the collection.
+- [Notion](https://wshchocolatine.notion.site/Ake-Engeneering-5af866c71d63417684165348f3648ada) : every thing you need to know about how Ake api is working is related on this page. Each route is documentated. 
+
+- [Potsman](https://app.getpostman.com/run-collection/14271414-f3ccc73b-ed8b-473e-a253-0179d5705fcc?action=collection%2Ffork&collection-url=entityId%3D14271414-f3ccc73b-ed8b-473e-a253-0179d5705fcc%26entityType%3Dcollection%26workspaceId%3D88b58dc1-5d9a-4971-8088-89de8d2bd353) : we also have a Postman collection where you can make directly requests to the Api to test it. 
 
 ### SDK
 
-We've also made an SDK to help clients to deal with the Api. It is still under development, but beta version is available [here](https://github.com/wshchocolatine/ake-sdk).
+We've made an __SDK__ to help clients to deal with the Api. It is still under development, but beta version is available [here](https://github.com/wshchocolatine/ake-sdk).
 
 ### Installation guide
 

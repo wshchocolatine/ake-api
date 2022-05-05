@@ -2,11 +2,11 @@
 
 <p align="center"><img src="./assets/logo/logo.png" width="250"></p>
 
-This is the api of Ake, a open-source messenger where you can chat safely and privately.
+Ake is an open-source messenger where you can chat safely and privately. 
+
+This repo is only hosting the Api. The client side has not yet been developped, you can dot it if you want to contribute to the projects. More informations for dev [here](./fordevs.md)
 
 ⚠️ Warning, this project is not yet mature. If you really want an open-source and functional encrypted messaging, I recommend [Signal](https://github.com/signalapp) or the [Matrix ecosystem](https://github.com/matrix-org). In the meantime, you can contribute to the development of Ake by participating to the code or by using the messaging.
-
-For devs, check [here](./fordevs.md)
 
 ## Features ✌️
 
